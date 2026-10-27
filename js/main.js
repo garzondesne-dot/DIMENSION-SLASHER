@@ -1,6 +1,7 @@
 // 화면 흐름
 //  캠페인: 캠프 → 잡몹 → 캠프 → 보스 (1층, 2층) → 클리어
 //  최종보스 체험판: 41쪽 11번 단독 전투 (필요한 카드는 기억 복원으로 지급)
+//  세이브: 캠페인만 자동 저장 (캠프 입장·출발·승리 직후), 타이틀의 [이어하기]로 저장된 캠프에서 시작
 window.DS = window.DS || {};
 
 (function () {
@@ -45,6 +46,11 @@ window.DS = window.DS || {};
   function show(id) {
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
     window.scrollTo(0, 0);
+    if (id === 'screen-title') refreshTitle();
+  }
+  function refreshTitle() {
+    $('#btn-continue').classList.toggle('hidden', !DS.Save.compatible());
+    $('#save-note').textContent = DS.Save.has() && !DS.Save.compatible() ? '이전 버전의 저장은 이어할 수 없어요. 새로 시작해 주세요.' : '';
   }
   function addParts(parts) {
     Object.entries(parts || {}).forEach(([k, v]) => { G.bag[k] = (G.bag[k] || 0) + v; });
@@ -62,6 +68,7 @@ window.DS = window.DS || {};
   // 캠프에는 다음 상대·문제를 보여 주지 않는다 (조우해야 알 수 있음). 층의 단원 범위만 표시.
   function enterCamp(n, i) {
     if (!G.granted.has(i)) { addParts(n.parts); G.granted.add(i); }
+    DS.Save.write(G);
     const fl = DS.Progress.floors[n.floor];
     $('#camp-sub').textContent = fl.title;
     $('#camp-next').innerHTML = `<b>이 층의 범위:</b> ${esc(fl.unit)}<br><span class="muted">어떤 문제가 기다리는지는 조우해야 알 수 있다. 스캔 카드를 챙겨라.</span>`;
@@ -76,6 +83,7 @@ window.DS = window.DS || {};
   function startBattle(n, i) {
     const def = DS.Monsters[n.monster];
     const problem = G.problems[i] || (G.problems[i] = def.makeProblem());
+    DS.Save.write(G, i - 1); // 덱 구성·문제 숫자 저장. 전투 중에 닫으면 직전 캠프에서 이어 함
     show('screen-battle');
     DS.Battle.start({
       def, problem, deck: G.cards.filter((c) => G.deckUids.has(c.uid)), loop: G.loop, mastery: G.mastery,
@@ -97,6 +105,7 @@ window.DS = window.DS || {};
   function afterWin(n, i) {
     const def = DS.Monsters[n.monster];
     if (n.reward) addParts(n.reward);
+    DS.Save.write(G, i + 1);
     const next = nodes[i + 1];
     $('#reward-title').textContent = `${def.name} 해결!`;
     $('#reward-desc').textContent = n.reward ? '문제를 푼 자리에서 새로운 기억의 부품을 얻었다.' : '';
@@ -149,7 +158,23 @@ window.DS = window.DS || {};
   function bind() {
     DS.Forge.bind();
     DS.Battle.bind();
-    $('#btn-start').addEventListener('click', () => { DS.Sound.unlock(); newGame(); show('screen-story'); });
+    $('#btn-start').addEventListener('click', async () => {
+      DS.Sound.unlock();
+      if (DS.Save.has()) {
+        const idx = await DS.Cinematic.choice('새로 시작', '저장된 캠페인 진행을 지우고 처음부터 시작할까요?', ['지우고 새로 시작', '취소']);
+        if (idx !== 0) return;
+        DS.Save.clear();
+      }
+      newGame();
+      show('screen-story');
+    });
+    $('#btn-continue').addEventListener('click', () => {
+      DS.Sound.unlock();
+      const g = DS.Save.read();
+      if (!g) { refreshTitle(); return; }
+      G = g;
+      goto(G.node);
+    });
     $('#btn-trial').addEventListener('click', () => { DS.Sound.unlock(); startTrial(false); });
     $('#btn-story').addEventListener('click', () => goto(0));
     $('#btn-restart').addEventListener('click', () => { newGame(); show('screen-title'); });
@@ -176,4 +201,5 @@ window.DS = window.DS || {};
 
   newGame();
   bind();
+  refreshTitle();
 })();

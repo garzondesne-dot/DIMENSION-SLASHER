@@ -3,16 +3,17 @@
 // (2) 카드 수치: 투자 점수 공식(합계 = 점수+2 ~ 점수+4), 옵션 개수·범위, 스캔 규칙
 // (3) 덱 규칙 판정
 // (4) 몬스터 문제: 단계별 정답 하나, 스캔 조각 조건, 보스 정답 독립 검산
+// (5) 세이브: 저장 → 불러오기 왕복, 같은 문제 재생성, 다른 버전 거부
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
 const ctx = vm.createContext({});
 ctx.window = ctx;
-for (const f of ['mathgen', 'data', 'craft', 'cards', 'monsters']) {
+for (const f of ['mathgen', 'data', 'craft', 'cards', 'monsters', 'save']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, `../js/${f}.js`), 'utf8'), ctx);
 }
-const { Cards, Craft, CardKit: K, Monsters, Progress, Parts, Ops, Tiers, Affixes, DeckRules } = ctx.DS;
+const { Cards, Craft, CardKit: K, Monsters, Progress, Parts, Ops, Tiers, Affixes, DeckRules, Save } = ctx.DS;
 
 let failures = 0;
 function check(cond, msg) {
@@ -148,5 +149,39 @@ for (const n of Progress.nodes.filter((x) => x.type === 'battle')) {
   for (const s of Monsters[n.monster].makeProblem().steps) check(['normal', 'magic'].includes(Cards[s.tool].tier), `캠페인 도구 등급: ${s.tool}`);
 }
 
+// ── 5. 세이브 ─────────────────────────────────────────────
+// 무작위 문제는 params 로 같은 문제를 다시 만들 수 있어야 함 (조각·정답이 같음)
+for (let t = 0; t < 300; t++) {
+  for (const id of ['slime', 'bat', 'golem', 'beast']) {
+    const a = Monsters[id].makeProblem();
+    const b = Monsters[id].makeProblem(JSON.parse(JSON.stringify(a.params || {})));
+    check(JSON.stringify(a.pieces) === JSON.stringify(b.pieces), `세이브 문제 재생성(조각): ${id}`);
+    a.steps.forEach((s, k) => check(s.challenge().answer === b.steps[k].challenge().answer, `세이브 문제 재생성(정답): ${id} ${k + 1}단계`));
+  }
+}
+{
+  const cards = [K.roll('diff'), K.roll('segLen', 'y'), K.roll('para')];
+  cards[1].locked = true;
+  const battleIdx = Progress.nodes.findIndex((n) => n.monster === 'slime');
+  const batIdx = Progress.nodes.findIndex((n) => n.monster === 'bat');
+  const G0 = {
+    node: 4, loop: 3, cards, deckUids: new Set([cards[0].uid, cards[2].uid]), bag: { ptA: 2, ptB: 1, slope: 1 },
+    discovered: new Set(['diff', 'segLen']), mastery: { diff: 3, segLen: 1 }, granted: new Set([0, 2]),
+    problems: { [battleIdx]: Monsters.slime.makeProblem(), [batIdx]: Monsters.bat.makeProblem() },
+    stats: { asked: 5, correct: 4, steps: 3, crits: 1, wrongTools: 2, emergencies: 1 },
+  };
+  const json = JSON.stringify(Save.pack(G0));
+  const G1 = Save.unpack(JSON.parse(json));
+  check(G1.node === 4 && G1.loop === 3, '세이브 위치·루프');
+  check(JSON.stringify(G1.cards) === JSON.stringify(G0.cards), '세이브 카드(수치·옵션·잠금·축)');
+  check([...G1.deckUids].join() === [...G0.deckUids].join(), '세이브 덱');
+  check(JSON.stringify(G1.bag) === JSON.stringify(G0.bag) && JSON.stringify(G1.mastery) === JSON.stringify(G0.mastery), '세이브 부품·숙련');
+  check(G1.discovered.has('segLen') && G1.granted.has(2) && G1.granted.size === 2, '세이브 도감·지급 기록');
+  check(JSON.stringify(G1.stats) === JSON.stringify(G0.stats), '세이브 통계');
+  for (const k of [battleIdx, batIdx]) check(JSON.stringify(G1.problems[k].pieces) === JSON.stringify(G0.problems[k].pieces), `세이브 문제 유지: 노드 ${k}`);
+  check(Save.unpack({ ...JSON.parse(json), ver: Save.VER + 1 }) === null, '다른 버전 저장 거부');
+  check(json.length < 20000, `세이브 크기 ${json.length}바이트`);
+}
+
 if (failures) { console.error(`\n${failures}건 실패`); process.exit(1); }
-console.log(`OK: 연성 규칙 ${Craft.RULES.length}개 · 카드 수치·옵션 · 덱 규칙 · 몬스터 ${Object.keys(Monsters).length}종 · 보스 정답 검산 통과`);
+console.log(`OK: 연성 규칙 ${Craft.RULES.length}개 · 카드 수치·옵션 · 덱 규칙 · 몬스터 ${Object.keys(Monsters).length}종 · 보스 정답 검산 · 세이브 왕복 통과`);

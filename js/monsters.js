@@ -2,7 +2,8 @@
 // 공격은 문턱을 넘지 못하고, 문턱에서 그 단계를 풀어야 문턱이 깨진다. 모든 단계를 풀어야 쓰러뜨릴 수 있다.
 // 문제는 조각(pieces)으로 나뉘어 스캔한 만큼만 보인다. 단계마다 필요한 조각 수(needs)가 있다.
 // 그림 요소의 scan: k → k번째 조각이 공개돼야 보임, from: k → k단계를 푼 뒤 보임
-// makeProblem() 은 전투에 들어갈 때 한 번 호출되고, 되감기·후퇴 후 재도전에도 같은 문제를 쓴다.
+// makeProblem(params) 은 전투에 들어갈 때 한 번 호출되고, 되감기·후퇴 후 재도전에도 같은 문제를 쓴다.
+// 무작위 숫자는 problem.params 에 담아 두고, 세이브에서 불러올 때 makeProblem(params) 로 같은 문제를 다시 만든다.
 window.DS = window.DS || {};
 
 DS.Monsters = (function () {
@@ -25,11 +26,15 @@ DS.Monsters = (function () {
     intro: '수직선 위를 기어 다니는 슬라임. 두 팔 사이의 거리를 재면 약점이 드러난다.',
     campHint: '수직선 위 두 점 사이를 재는 도구가 필요하다.',
     intents: [{ v: 5, label: '튀어 오르기' }, { v: 7, label: '산성 침' }],
-    makeProblem() {
-      const a = G.ri(-9, 9);
-      let b;
-      do b = G.ri(-9, 9); while (b === a || Math.abs(b - a) < 3);
+    makeProblem(p) {
+      let a, b;
+      if (p) ({ a, b } = p);
+      else {
+        a = G.ri(-9, 9);
+        do b = G.ri(-9, 9); while (b === a || Math.abs(b - a) < 3);
+      }
       return {
+        params: { a, b },
         pieces: [`수직선 위의 두 점 A(${num(a)}), B(${num(b)}) 사이의`, '거리를 구하시오.'],
         figure: { kind: 'numberline', points: [{ x: a, label: 'A', color: '#4cc9ff' }, { x: b, label: 'B', color: '#ff8c3a' }] },
         steps: [{
@@ -89,13 +94,17 @@ DS.Monsters = (function () {
     intro: '결계선을 따라 날아다니는 박쥐. 결계와 나란한 길을 찾으면 꿰뚫린다.',
     campHint: '두 직선이 "나란할" 조건을 알아야 한다.',
     intents: [{ v: 6, label: '초음파' }, { v: 8, label: '급강하' }],
-    makeProblem() {
-      const m = G.pick([-3, -2, 2, 3]);
-      const n = G.ri(-3, 3);
-      let a, b;
-      do { a = G.ri(-3, 3); b = G.ri(-3, 3); } while (b === m * a + n);
+    makeProblem(p) {
+      let m, n, a, b;
+      if (p) ({ m, n, a, b } = p);
+      else {
+        m = G.pick([-3, -2, 2, 3]);
+        n = G.ri(-3, 3);
+        do { a = G.ri(-3, 3); b = G.ri(-3, 3); } while (b === m * a + n);
+      }
       const c = b - m * a;
       return {
+        params: { m, n, a, b },
         pieces: [`결계선 ${lineStr(m, n)}이 있다.`, `점 Q(${num(a)}, ${num(b)})를 지나고`, '결계선에 평행한 직선의 방정식을 구하시오.'],
         figure: {
           kind: 'plane', view: { x0: -6, x1: 6, y0: -6, y1: 6 },

@@ -16,14 +16,16 @@
   <!-- 타이틀 -->
   <section id="screen-title" class="screen active">
     <div class="title-wrap">
-      <p class="eyebrow">공통수학2 · Ⅰ. 도형의 방정식 · v0.2.1</p>
+      <p class="eyebrow">공통수학2 · Ⅰ. 도형의 방정식 · v0.2.1 · 세이브</p>
       <h1 class="logo">DIMENSION<br><span>SLASHER</span></h1>
       <p class="tagline">몬스터는 곧 문제다. 공식을 벼려 풀이로 베어라.</p>
       <div class="title-btns">
+        <button id="btn-continue" class="btn primary big hidden">▶ 이어하기</button>
         <button id="btn-start" class="btn primary big">캠페인 (1·2층)</button>
         <button id="btn-trial" class="btn boss big">최종보스 체험판</button>
       </div>
-      <p class="hint">PC: 문제 창에서 숫자 1~4로 선택, E로 턴 종료</p>
+      <p id="save-note" class="hint"></p>
+      <p class="hint">PC: 문제 창에서 숫자 1~4로 선택, E로 턴 종료 · 캠페인은 캠프마다 자동 저장</p>
     </div>
   </section>
 
@@ -198,6 +200,7 @@
 <script src="js/challenge.js"></script>
 <script src="js/cinematic.js"></script>
 <script src="js/scene.js"></script>
+<script src="js/save.js"></script>
 <script src="js/forge.js"></script>
 <script src="js/battle.js"></script>
 <script src="js/main.js"></script>
