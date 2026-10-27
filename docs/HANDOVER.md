@@ -169,6 +169,7 @@
 ### 배포 (v0.2.2)
 
 - 구글 시트에 붙인 Apps Script 웹 앱 하나로 게임 페이지와 결과 수집을 함께 한다 ([deploy-apps-script.md](deploy-apps-script.md)).
+- 게임 파일은 구글 드라이브에 올려 두고, `doGet`이 이름에 `dimension-slasher-game`이 들어간 HTML 중 가장 최근 것을 읽어 보여 준다. 새 버전은 드라이브에 다시 올리기만 하면 되고(재배포 불필요), 폰에서도 설정할 수 있다. 드라이브에 없으면 프로젝트의 `game.html`(붙여 넣기 방식)을 쓴다.
 - 게임이 웹 앱 안에서 열리면 결과는 `google.script.run.saveResult`로 보내 성공·실패를 정확히 알 수 있다. 파일로 열면 기존처럼 `DS.REPORT_URL`로 POST.
 - 서버는 '결과' 시트에 잠금을 걸고 한 줄씩 추가하며, 새 항목이 생기면 열을 덧붙인다.
 
@@ -218,7 +219,7 @@
 | `js/save.js` | 캠페인 자동 세이브 (저장·불러오기·버전 확인) |
 | `js/report.js` | 학생 등록, 결과 보내기 (베타 테스트) |
 | `js/titlebg.js` | 타이틀 배경 애니메이션 |
-| `deploy/apps-script/Code.gs` | Apps Script 배포: 게임 페이지(doGet) + 결과 시트 기록(saveResult, doPost) |
+| `deploy/apps-script/Code.gs` | Apps Script 배포: 드라이브의 게임 파일을 보여 줌(doGet) + 결과 시트 기록(saveResult, doPost) |
 | `tools/bundle.py` | 배포용 단독 HTML 만들기 (게임 실행에는 필요 없음) |
 | `js/forge.js` | 캠프 대장간(묶음 보관함) · 덱 구성 · 첫 연성 튜토리얼 · 조합법 창(꺼 둠) |
 | `js/quiz.js` | 4지선다 창과 문제 그림 |
