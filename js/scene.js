@@ -1,5 +1,5 @@
-// 전투 장면 캔버스 렌더러: 픽셀 블록 스프라이트, 수직선/좌표평면 배경, 이펙트(참격·파편·글리치)
-// 좌표평면의 방패 직선과 수직 참격은 실제 기울기 그대로 그려서 화면이 곧 수학 그림이 되게 한다.
+// 전투 장면 캔버스 렌더러: 픽셀 블록 스프라이트 + 몬스터 문제의 그림(수직선/좌표평면) + 이펙트
+// 그림 요소는 풀이 단계(stepIdx)에 따라 나타나거나 바뀐다. 기울기·거리는 실제 비율 그대로 그린다.
 window.DS = window.DS || {};
 
 DS.Scene = function (canvas) {
@@ -11,23 +11,31 @@ DS.Scene = function (canvas) {
   const FONT = '"Galmuri11", "Galmuri14", monospace';
 
   const GROUND = 292;
-  const HERO = { x: 128, y: GROUND, u: 5 };
-  const NL_Y = 328; // 1층 수직선
+  const HERO = { x: 96, y: GROUND };
+  const NL_Y = 328;
   const nl = (v) => 320 + v * 27;
-  const O = { x: 450, y: 165 }, U = 22; // 2층 좌표평면 원점과 1칸 크기
-  const pl = (x, y) => ({ x: O.x + x * U, y: O.y - y * U });
 
   let B = null; // 전투 상태 (battle.js 가 넘겨줌)
-  let bgCache = {};
+  let map = null; // 좌표평면 → 캔버스 변환
+  const bgCache = {};
   const fx = {};
   function resetFx() {
     Object.assign(fx, {
-      slashes: [], parts: [], shards: [], texts: [], rings: [],
-      shake: 0, flash: null, glitch: 0, glitchMax: 1,
+      slashes: [], parts: [], shards: [], texts: [], rings: [], traces: [],
+      shake: 0, flash: null, glitch: 0, glitchMax: 1, hitstop: 0, slowmo: false,
       heroDx: 0, enemyDx: 0, enemyFlash: 0, heroFlash: 0, enemyAlpha: 1, shieldFlash: 0,
     });
   }
   resetFx();
+
+  // 좌표평면 보기 영역을 캔버스 (180~620, 15~285) 안에 같은 축척으로 맞춘다
+  function makeMap(view) {
+    const U = Math.min(440 / (view.x1 - view.x0), 270 / (view.y1 - view.y0));
+    const ox = 400 - ((view.x0 + view.x1) / 2) * U;
+    const oy = 150 + ((view.y0 + view.y1) / 2) * U;
+    return { U, ox, oy, view, P: (x, y) => ({ x: ox + x * U, y: oy - y * U }) };
+  }
+  const pl = (x, y) => map.P(x, y);
 
   // ── 픽셀 블록 스프라이트 ──────────────────────────────────
   // [x, y, w, h, color] 단위 블록. body 는 외곽선을 두르고, detail 은 그 위에 덧칠한다.
@@ -48,6 +56,25 @@ DS.Scene = function (canvas) {
         [-4, -11, 8, 1, '#8a94a6'], [-4, -6, 8, 1, '#e8b04a'], [-1, -9, 2, 1, '#e8b04a'],
         [-3, -17, 6, 1, '#c9d1de'], [-1, -15, 4, 1, '#141020'], [1, -15, 2, 1, '#4cc9ff'],
         [6, -20, 1, 1, '#ffffff'], [-6, -12, 1, 9, '#7a3ab8'],
+      ],
+    },
+    slime: {
+      u: 5,
+      body: [[-7, -8, 14, 8, '#3fa58b'], [-5, -11, 10, 3, '#3fa58b'], [-3, -13, 6, 2, '#3fa58b']],
+      detail: [
+        [-5, -11, 10, 1, '#6fe0bf'], [-3, -13, 6, 1, '#6fe0bf'], [-4, -7, 2, 2, '#0b0912'], [2, -7, 2, 2, '#0b0912'],
+        [-5, -10, 2, 1, '#e6fff7'], [-1, -4, 2, 1, '#0b0912'], [-7, -2, 14, 2, '#2e7f6a'],
+      ],
+    },
+    bat: {
+      u: 5,
+      body: [
+        [-4, -8, 8, 7, '#5e3f8c'], [-4, -10, 2, 2, '#5e3f8c'], [2, -10, 2, 2, '#5e3f8c'],
+        [-13, -7, 9, 3, '#4a3270'], [-11, -9, 5, 2, '#4a3270'], [4, -7, 9, 3, '#4a3270'], [6, -9, 5, 2, '#4a3270'],
+      ],
+      detail: [
+        [-3, -6, 2, 1, '#ffd166'], [1, -6, 2, 1, '#ffd166'], [-1, -3, 1, 1, '#ffffff'],
+        [-12, -6, 7, 1, '#6b4a9c'], [5, -6, 7, 1, '#6b4a9c'],
       ],
     },
     golem: {
@@ -86,6 +113,28 @@ DS.Scene = function (canvas) {
         [-6, -12, 1, 4, '#47285a'], [2, -11, 1, 3, '#47285a'], [7, -13, 1, 3, '#47285a'],
       ],
     },
+    boss: {
+      u: 5,
+      body: [
+        [-6, -8, 4, 8, '#231c38'], [2, -8, 4, 8, '#231c38'],
+        [-15, -25, 4, 13, '#3b2f5c'], [11, -25, 4, 13, '#3b2f5c'],
+        [-11, -28, 22, 20, '#3b2f5c'], [-12, -10, 24, 3, '#2e2449'],
+        [-14, -29, 6, 4, '#4a3b70'], [8, -29, 6, 4, '#4a3b70'],
+        [-5, -36, 10, 8, '#4a3b70'],
+        [-5, -39, 2, 3, '#e8b04a'], [-1, -40, 2, 4, '#e8b04a'], [3, -39, 2, 3, '#e8b04a'],
+      ],
+      detail: [
+        [-3, -33, 2, 1, '#ff3355'], [1, -33, 2, 1, '#ff3355'], [-5, -36, 10, 1, '#6a5896'],
+        [-11, -28, 1, 20, '#5e4b8c'], [10, -28, 1, 20, '#5e4b8c'], [-14, -29, 6, 1, '#6a5896'], [8, -29, 6, 1, '#6a5896'],
+      ],
+    },
+  };
+  const ANCHOR = {
+    slime: { x: 520, y: GROUND, cx: 0, cy: -30 },
+    bat: { x: 520, y: GROUND - 80, cx: 0, cy: -25 },
+    golem: { x: 520, y: GROUND, cx: 0, cy: -90 },
+    beast: { x: 530, y: GROUND, cx: -20, cy: -60 },
+    boss: { x: 548, y: GROUND, cx: 0, cy: -95 },
   };
 
   function blocks(list, ox, oy, u, white, outline) {
@@ -111,15 +160,22 @@ DS.Scene = function (canvas) {
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
     ctx.globalAlpha = 1;
   }
+  function pixelHeart(x, y, u, color = '#ff3355') {
+    ctx.fillStyle = color;
+    for (const [a, b, w, h] of [[-3, -2, 2, 2], [1, -2, 2, 2], [-4, -1, 8, 2], [-3, 1, 6, 1], [-2, 2, 4, 1], [-1, 3, 2, 1]]) {
+      ctx.fillRect(x + a * u, y + b * u, w * u, h * u);
+    }
+  }
 
-  // ── 배경 (층별로 한 번만 그려서 캐시) ─────────────────────
-  function makeBg(floor) {
+  // ── 배경 ─────────────────────────────────────────────────
+  function makeBg() {
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const g = c.getContext('2d');
-    g.fillStyle = floor === 1 ? '#110e1a' : '#0d0b19';
+    const fig = B.prob.figure;
+    g.fillStyle = '#0f0d1a';
     g.fillRect(0, 0, W, H);
-    if (floor === 1) {
+    if (fig.kind === 'numberline') {
       for (let row = 0; row < 14; row++) {
         const off = row % 2 ? 0 : 20;
         for (let col = -1; col < 18; col++) {
@@ -129,25 +185,25 @@ DS.Scene = function (canvas) {
         }
       }
     } else {
+      const { U, ox, oy } = map;
       g.strokeStyle = '#211d3d';
       g.lineWidth = 1;
-      for (let x = O.x % U; x < W; x += U) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, GROUND); g.stroke(); }
-      for (let y = O.y % U; y < GROUND; y += U) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(W, y + 0.5); g.stroke(); }
+      for (let x = ((ox % U) + U) % U; x < W; x += U) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, GROUND); g.stroke(); }
+      for (let y = ((oy % U) + U) % U; y < GROUND; y += U) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(W, y + 0.5); g.stroke(); }
       g.strokeStyle = '#4b4580';
       g.lineWidth = 2;
-      g.beginPath(); g.moveTo(0, O.y); g.lineTo(W, O.y); g.stroke();
-      g.beginPath(); g.moveTo(O.x, 0); g.lineTo(O.x, GROUND); g.stroke();
+      g.beginPath(); g.moveTo(0, oy); g.lineTo(W, oy); g.stroke();
+      g.beginPath(); g.moveTo(ox, 0); g.lineTo(ox, GROUND); g.stroke();
       g.fillStyle = '#6f68a8';
       g.font = `11px ${FONT}`;
       g.textAlign = 'center';
-      for (let i = -18; i <= 8; i += 2) if (i) g.fillText(String(i).replace('-', '−'), O.x + i * U, O.y + 14);
+      const xmin = Math.ceil(-ox / U), xmax = Math.floor((W - ox) / U);
+      const step = U < 26 ? 2 : 1;
+      for (let i = xmin; i <= xmax; i++) if (i && i % step === 0) g.fillText(String(i).replace('-', '−'), ox + i * U, oy + 14);
       g.textAlign = 'right';
-      for (let i = -4; i <= 7; i += 2) if (i) g.fillText(String(i).replace('-', '−'), O.x - 5, O.y - i * U + 4);
-      g.fillText('O', O.x - 4, O.y + 14);
-      g.fillText('x', W - 6, O.y - 6);
-      g.fillText('y', O.x - 6, 12);
+      const ymin = Math.ceil((oy - GROUND) / U), ymax = Math.floor(oy / U);
+      for (let i = ymin; i <= ymax; i++) if (i && i % step === 0) g.fillText(String(i).replace('-', '−'), ox - 5, oy - i * U + 4);
     }
-    // 바닥
     g.fillStyle = '#1a1526';
     g.fillRect(0, GROUND, W, H - GROUND);
     g.fillStyle = '#2c2440';
@@ -155,20 +211,33 @@ DS.Scene = function (canvas) {
     return c;
   }
 
-  // ── 그리기 ────────────────────────────────────────────────
-  let time = 0;
+  // ── 문제 그림 ─────────────────────────────────────────────
+  const visible = (el) => B.stepIdx >= (el.from || 0) && (el.until == null || B.stepIdx < el.until);
 
-  function drawTorches() {
-    for (const x of [40, 600]) {
-      ctx.fillStyle = '#3a2e2a';
-      ctx.fillRect(x - 3, 120, 6, 22);
-      const f = 0.8 + Math.sin(time * 13 + x) * 0.15 + Math.random() * 0.08;
-      glow(x, 112, 60 * f, 'rgba(255,140,58,0.35)');
-      ctx.fillStyle = '#ff8c3a';
-      ctx.fillRect(x - 4, 106, 8, 12);
-      ctx.fillStyle = '#ffe08a';
-      ctx.fillRect(x - 2, 110 + Math.round(Math.random() * 2), 4, 6);
+  function strokeLine(a, b, color, w, opt = {}) {
+    ctx.lineCap = 'round';
+    if (opt.dash) ctx.setLineDash(opt.dash);
+    if (opt.glow) {
+      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = w * 3.5;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.globalAlpha = 1;
     }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineCap = 'butt';
+  }
+  function labelAt(p, text, color, dx = 8, dy = -8) {
+    ctx.font = `bold 12px ${FONT}`;
+    ctx.textAlign = 'left';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#0b0912';
+    ctx.strokeText(text, p.x + dx, p.y + dy);
+    ctx.fillStyle = color;
+    ctx.fillText(text, p.x + dx, p.y + dy);
   }
 
   function drawNumberLine() {
@@ -182,130 +251,148 @@ DS.Scene = function (canvas) {
       ctx.fillRect(nl(v) - 1, NL_Y - (v % 5 ? 3 : 6), 2, v % 5 ? 6 : 12);
       if (v % 2 === 0) ctx.fillText(String(v).replace('-', '−'), nl(v), NL_Y + 20);
     }
-    const c = B && B.enemy.ctx;
-    if (!c) return;
-    const xa = nl(c.a), xb = nl(c.b);
-    ctx.fillStyle = 'rgba(232,176,74,0.25)';
-    ctx.fillRect(Math.min(xa, xb), NL_Y - 4, Math.abs(xb - xa), 8);
-    const marks = [
-      [xa, `A(${String(c.a).replace('-', '−')})`, '#4cc9ff', 'rgba(76,201,255,0.6)'],
-      [xb, `B(${String(c.b).replace('-', '−')})`, '#ff8c3a', 'rgba(255,140,58,0.6)'],
-    ];
-    for (const [x, lab, col, glowCol] of marks) {
-      glow(x, NL_Y, 16, glowCol);
-      ctx.fillStyle = col;
+    const pts = B.prob.figure.points;
+    if (pts.length === 2) {
+      const xa = nl(pts[0].x), xb = nl(pts[1].x);
+      ctx.fillStyle = B.stepIdx >= 1 ? 'rgba(125,249,255,0.45)' : 'rgba(232,176,74,0.25)';
+      ctx.fillRect(Math.min(xa, xb), NL_Y - 4, Math.abs(xb - xa), 8);
+    }
+    for (const p of pts) {
+      const x = nl(p.x);
+      glow(x, NL_Y, 16, p.color, 0.5);
+      ctx.fillStyle = p.color;
       ctx.beginPath(); ctx.moveTo(x, NL_Y - 4); ctx.lineTo(x - 6, NL_Y - 14); ctx.lineTo(x + 6, NL_Y - 14); ctx.fill();
       ctx.font = `bold 13px ${FONT}`;
-      ctx.fillText(lab, x, NL_Y - 18);
+      ctx.textAlign = 'center';
+      ctx.fillText(`${p.label}(${String(p.x).replace('-', '−')})`, x, NL_Y - 18);
     }
   }
 
-  // 방패: 방패 직선 위에서 심장 P 의 수선의 발을 중심으로 한 선분
-  function shieldSegment(c, half = 3.6) {
-    const m = c.m.n / c.m.d;
-    const t = (c.P.a + m * (c.P.b - c.n)) / (1 + m * m); // 수선의 발 x좌표
-    const fy = m * t + c.n;
-    const len = Math.hypot(1, m);
-    const dx = half / len, dy = (half * m) / len;
-    return { a: pl(t - dx, fy - dy), b: pl(t + dx, fy + dy), foot: pl(t, fy), m };
-  }
-
-  function drawShield() {
-    const e = B.enemy, c = e.ctx;
-    if (!c) return;
-    const s = shieldSegment(c);
-    if (e.shieldUp) {
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = 'rgba(255,209,102,0.25)';
-      ctx.lineWidth = 16;
-      ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.b.x, s.b.y); ctx.stroke();
-      ctx.strokeStyle = fx.shieldFlash > 0 ? '#ffffff' : '#ffd166';
-      ctx.lineWidth = 6;
-      ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.b.x, s.b.y); ctx.stroke();
-      ctx.strokeStyle = '#fff3c4';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.b.x, s.b.y); ctx.stroke();
-      ctx.lineCap = 'butt';
-    } else {
-      ctx.setLineDash([6, 6]);
-      ctx.strokeStyle = 'rgba(255,209,102,0.3)';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.b.x, s.b.y); ctx.stroke();
-      ctx.setLineDash([]);
+  function drawPlane() {
+    const v = map.view;
+    for (const el of B.prob.figure.els) {
+      if (!visible(el)) continue;
+      if (el.t === 'line') {
+        const a = pl(v.x0 - 2, el.m * (v.x0 - 2) + el.n), b = pl(v.x1 + 2, el.m * (v.x1 + 2) + el.n);
+        if (el.style === 'dashed') strokeLine(a, b, el.color, 2, { dash: [6, 6] });
+        else if (el.style === 'barrier') {
+          const f = 0.7 + Math.sin(time * 9) * 0.3;
+          ctx.globalAlpha = f;
+          strokeLine(a, b, el.color, 5, { glow: true });
+          ctx.globalAlpha = 1;
+        } else if (el.style === 'laser') {
+          strokeLine(a, b, el.color, 5 + Math.sin(time * 20), { glow: true });
+          strokeLine(a, b, '#ffffff', 1.5);
+        } else strokeLine(a, b, el.color, 3, { glow: el.glow });
+      } else if (el.t === 'seg') {
+        strokeLine(pl(el.x1, el.y1), pl(el.x2, el.y2), el.color, el.glow ? 4 : 3, { glow: el.glow, dash: el.dashed ? [5, 5] : null });
+      } else if (el.t === 'circle') {
+        const c = pl(el.cx, el.cy);
+        ctx.strokeStyle = el.color;
+        ctx.globalAlpha = 0.3;
+        ctx.lineWidth = 10;
+        ctx.beginPath(); ctx.arc(c.x, c.y, el.r * map.U, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(c.x, c.y, el.r * map.U, 0, Math.PI * 2); ctx.stroke();
+      } else if (el.t === 'pt') {
+        const p = pl(el.x, el.y);
+        glow(p.x, p.y, 14, el.color, 0.45);
+        ctx.fillStyle = el.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill();
+        labelAt(p, el.label, el.color);
+      } else if (el.t === 'label') {
+        labelAt(pl(el.x, el.y), el.text, el.color, 0, 0);
+      } else if (el.t === 'tri') {
+        const ps = el.pts.map(([x, y]) => pl(x, y));
+        ctx.fillStyle = 'rgba(255,209,102,0.15)';
+        ctx.beginPath(); ps.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); ctx.fill();
+        for (let i = 0; i < 3; i++) strokeLine(ps[i], ps[(i + 1) % 3], el.color, 3, { glow: true });
+      } else if (el.t === 'shield') {
+        const s = shieldSegment(el);
+        strokeLine(s.a, s.b, fx.shieldFlash > 0 ? '#ffffff' : '#ffd166', 6, { glow: true });
+        strokeLine(s.a, s.b, '#fff3c4', 2);
+      } else if (el.t === 'heart') {
+        const p = pl(el.x, el.y);
+        const beat = 1 + Math.max(0, Math.sin(time * 6)) * 0.25;
+        glow(p.x, p.y, (B.stepIdx >= 2 ? 34 : 24) * beat, 'rgba(255,51,85,0.6)');
+        pixelHeart(p.x, p.y, 2 * beat);
+        labelAt(p, el.label, '#ffd0da', 12, -10);
+      }
     }
   }
 
-  function drawHeart() {
-    const c = B.enemy.ctx;
-    if (!c) return;
-    const p = pl(c.P.a, c.P.b);
-    const beat = 1 + Math.max(0, Math.sin(time * 6)) * 0.25;
-    glow(p.x, p.y, 26 * beat, 'rgba(255,51,85,0.55)');
-    const u = 2 * beat;
-    ctx.fillStyle = '#ff3355';
-    for (const [x, y, w, h] of [[-3, -2, 2, 2], [1, -2, 2, 2], [-4, -1, 8, 2], [-3, 1, 6, 1], [-2, 2, 4, 1], [-1, 3, 2, 1]]) {
-      ctx.fillRect(p.x + x * u, p.y + y * u, w * u, h * u);
-    }
-    ctx.fillStyle = '#ffd0da';
-    ctx.font = `bold 12px ${FONT}`;
-    ctx.textAlign = 'left';
-    ctx.fillText(`P(${String(c.P.a).replace('-', '−')}, ${String(c.P.b).replace('-', '−')})`, p.x + 12, p.y - 10);
+  // 방패: 방패 직선 위에서 심장의 수선의 발을 중심으로 한 선분
+  function shieldSegment(el, half = 2.6) {
+    const m = el.m;
+    const t = (el.px + m * (el.py - el.n)) / (1 + m * m);
+    const fy = m * t + el.n;
+    const len = Math.hypot(1, m), dx = half / len, dy = (half * m) / len;
+    return { a: pl(t - dx, fy - dy), b: pl(t + dx, fy + dy), foot: pl(t, fy) };
   }
 
-  function enemyAnchor() {
-    if (!B) return { x: 480, y: GROUND };
-    return B.def.floor === 1 ? { x: 470, y: GROUND } : { x: 500, y: GROUND };
-  }
+  // ── 스프라이트 그리기 ─────────────────────────────────────
+  function anchor() { return ANCHOR[B.def.sprite]; }
   function enemyCenter() {
-    const a = enemyAnchor();
-    return B && B.def.floor === 2 ? { x: a.x - 20, y: a.y - 70 } : { x: a.x, y: a.y - 90 };
+    const a = anchor();
+    return { x: a.x + a.cx, y: a.y + a.cy };
   }
-
   function drawEnemy() {
-    const e = B.enemy, a = enemyAnchor();
+    const a = anchor(), kind = B.def.sprite, s = SPR[kind];
     const white = fx.enemyFlash > 0;
-    const bob = Math.round(Math.sin(time * 2) * 2);
+    const bob = Math.round(Math.sin(time * (kind === 'bat' ? 6 : 2)) * (kind === 'bat' ? 5 : 2));
+    const ox = a.x + fx.enemyDx, oy = a.y + bob;
     ctx.globalAlpha = fx.enemyAlpha;
-    if (B.def.floor === 1) {
-      const s = SPR.golem, ox = a.x + fx.enemyDx, oy = a.y + bob;
-      sprite(s, ox, oy, white);
-      // 심장 코어
-      const pulse = 0.6 + Math.sin(time * 4) * 0.3;
-      glow(ox, oy - 13 * s.u, 30, `rgba(255,140,58,${pulse})`);
+    sprite(s, ox, oy, white);
+    if (kind === 'golem') {
+      const exposed = B.stepIdx >= 2;
+      glow(ox, oy - 13 * s.u, exposed ? 46 : 28, `rgba(255,140,58,${0.6 + Math.sin(time * 4) * 0.3})`);
       blocks([[-2, -15, 4, 4, '#ff8c3a'], [-1, -14, 2, 2, '#ffe08a']], ox, oy, s.u, white, false);
-      for (let i = 0; i < e.armor; i++) blocks(s.plates[i], ox, oy, s.u, white, true);
-    } else {
-      sprite(SPR.beast, a.x + fx.enemyDx, a.y + bob, white);
+      if (B.stepIdx < 1) for (let i = 0; i < 3; i++) blocks(s.plates[i], ox, oy, s.u, white, true);
+    } else if (kind === 'boss') {
+      const hx = ox, hy = oy - 19 * s.u;
+      const beat = 1 + Math.max(0, Math.sin(time * 6)) * 0.3;
+      glow(hx, hy, (B.stepIdx >= 4 ? 60 : 30) * beat, 'rgba(255,51,85,0.7)');
+      pixelHeart(hx, hy, (B.stepIdx >= 4 ? 4 : 3) * beat);
+      if (B.stepIdx < 4) {
+        for (let k = 0; k < 8; k++) {
+          const ang = (k * Math.PI) / 4, px = hx + Math.cos(ang) * 30, py = hy + Math.sin(ang) * 30;
+          ctx.save();
+          ctx.translate(px, py);
+          ctx.rotate(ang + Math.PI / 2);
+          ctx.fillStyle = white ? '#fff' : '#0b0912';
+          ctx.fillRect(-12, -7, 24, 14);
+          ctx.fillStyle = white ? '#fff' : '#9fb4c7';
+          ctx.fillRect(-10, -5, 20, 10);
+          ctx.fillStyle = '#d6e4f0';
+          ctx.fillRect(-10, -5, 20, 2);
+          ctx.restore();
+        }
+      }
     }
     ctx.globalAlpha = 1;
   }
-
   function drawHero() {
     const s = SPR.hero, ox = HERO.x + fx.heroDx, oy = HERO.y + Math.round(Math.sin(time * 2.4) * 1.5);
     sprite(s, ox, oy, fx.heroFlash > 0);
     glow(ox + 2 * s.u + 3, oy - 15 * s.u + 2, 12 + Math.sin(time * 5) * 3, 'rgba(76,201,255,0.8)');
   }
 
+  // ── 이펙트 ───────────────────────────────────────────────
   function drawFx(dt) {
-    // 참격
+    for (const t of fx.traces) { // 유니크 사용 흔적: 전투 내내 남는 참격 자국
+      ctx.globalAlpha = 0.35 + Math.sin(time * 3) * 0.1;
+      strokeLine(t.a, t.b, t.color, 4, { glow: true });
+      ctx.globalAlpha = 1;
+    }
     for (const s of fx.slashes) {
       const k = s.life / s.max;
-      const p = Math.min(1, (1 - k) * 3); // 그어지는 진행도
+      const p = Math.min(1, (1 - k) * 3);
       const x2 = s.x1 + (s.x2 - s.x1) * p, y2 = s.y1 + (s.y2 - s.y1) * p;
-      ctx.lineCap = 'round';
       ctx.globalAlpha = k;
-      ctx.strokeStyle = s.color;
-      ctx.lineWidth = s.w * 2.5;
-      ctx.globalAlpha = k * 0.35;
-      ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(x2, y2); ctx.stroke();
-      ctx.globalAlpha = k;
-      ctx.lineWidth = s.w;
-      ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(x2, y2); ctx.stroke();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = Math.max(1, s.w / 3);
-      ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(x2, y2); ctx.stroke();
+      strokeLine({ x: s.x1, y: s.y1 }, { x: x2, y: y2 }, s.color, s.w, { glow: true });
+      strokeLine({ x: s.x1, y: s.y1 }, { x: x2, y: y2 }, '#ffffff', Math.max(1, s.w / 3));
       ctx.globalAlpha = 1;
-      ctx.lineCap = 'butt';
       s.life -= dt;
     }
     fx.slashes = fx.slashes.filter((s) => s.life > 0);
@@ -321,7 +408,6 @@ DS.Scene = function (canvas) {
     }
     fx.rings = fx.rings.filter((r) => r.life > 0);
 
-    // 네온 스파크
     for (const p of fx.parts) {
       p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
       ctx.globalAlpha = Math.max(0, p.life / p.max);
@@ -331,7 +417,6 @@ DS.Scene = function (canvas) {
     ctx.globalAlpha = 1;
     fx.parts = fx.parts.filter((p) => p.life > 0);
 
-    // 갑옷 파편 (중력 + 바닥 튕김)
     for (const s of fx.shards) {
       s.vy += 900 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.rot += s.vr * dt; s.life -= dt;
       if (s.y > GROUND - 2) { s.y = GROUND - 2; s.vy *= -0.35; s.vx *= 0.6; s.vr *= 0.5; }
@@ -349,7 +434,6 @@ DS.Scene = function (canvas) {
     }
     fx.shards = fx.shards.filter((s) => s.life > 0);
 
-    // 떠오르는 숫자
     ctx.textAlign = 'center';
     for (const t of fx.texts) {
       t.y -= 40 * dt; t.life -= dt;
@@ -365,13 +449,11 @@ DS.Scene = function (canvas) {
     fx.texts = fx.texts.filter((t) => t.life > 0);
   }
 
-  // 테이프 되감기 글리치: 화면을 가로 띠로 잘라 어긋나게 + 주사선
   function drawGlitch() {
     const k = fx.glitch / fx.glitchMax;
     for (let i = 0; i < 14; i++) {
       const y = Math.floor(Math.random() * H), h = 4 + Math.floor(Math.random() * 24);
-      const dx = (Math.random() - 0.5) * 80 * k;
-      ctx.drawImage(canvas, 0, y, W, h, dx, y, W, h);
+      ctx.drawImage(canvas, 0, y, W, h, (Math.random() - 0.5) * 80 * k, y, W, h);
     }
     ctx.fillStyle = `rgba(76,201,255,${0.08 * k})`;
     ctx.fillRect(0, 0, W, H);
@@ -383,10 +465,12 @@ DS.Scene = function (canvas) {
     ctx.fillText('◀◀ REWIND', W / 2, H / 2);
   }
 
-  let last = performance.now();
+  let time = 0, last = performance.now();
   function frame(now) {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    let dt = Math.min(0.05, (now - last) / 1000);
     last = now;
+    if (fx.hitstop > 0) { fx.hitstop -= dt; dt = 0; } // 크리티컬 순간 정지
+    if (fx.slowmo) dt *= 0.25;
     time += dt;
     fx.heroDx *= Math.pow(0.0008, dt);
     fx.enemyDx *= Math.pow(0.0008, dt);
@@ -396,35 +480,40 @@ DS.Scene = function (canvas) {
     ctx.save();
     if (fx.shake > 0) ctx.translate((Math.random() - 0.5) * fx.shake, (Math.random() - 0.5) * fx.shake);
     if (B) {
-      const f = B.def.floor;
-      if (!bgCache[f]) bgCache[f] = makeBg(f);
-      ctx.drawImage(bgCache[f], 0, 0);
-      if (f === 1) { drawTorches(); drawNumberLine(); }
+      const key = B.def.sprite + (B.prob.figure.kind);
+      if (!bgCache[key]) bgCache[key] = makeBg();
+      ctx.drawImage(bgCache[key], 0, 0);
       drawHero();
       drawEnemy();
-      if (f === 2 && fx.enemyAlpha > 0.05) { drawShield(); drawHeart(); }
+      if (B.prob.figure.kind === 'numberline') drawNumberLine();
+      else if (fx.enemyAlpha > 0.05) drawPlane();
       drawFx(dt);
     } else {
       ctx.fillStyle = '#0b0912';
       ctx.fillRect(0, 0, W, H);
     }
     ctx.restore();
-
+    if (fx.slowmo) {
+      const g = ctx.createRadialGradient(W / 2, H / 2, 80, W / 2, H / 2, 380);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(60,0,20,0.7)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+    }
     if (fx.flash) {
       ctx.globalAlpha = Math.max(0, fx.flash.life / fx.flash.max) * 0.6;
       ctx.fillStyle = fx.flash.color;
       ctx.fillRect(0, 0, W, H);
       ctx.globalAlpha = 1;
-      fx.flash.life -= dt;
+      fx.flash.life -= Math.max(dt, 0.016);
       if (fx.flash.life <= 0) fx.flash = null;
     }
-    if (fx.glitch > 0) { drawGlitch(); fx.glitch -= dt; }
+    if (fx.glitch > 0) { drawGlitch(); fx.glitch -= Math.max(dt, 0.016); }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
-  // ── 이펙트 생성기 ─────────────────────────────────────────
-  function slash(x1, y1, x2, y2, color = '#bfefff', w = 6, life = 0.4) {
+  function slash(x1, y1, x2, y2, color = '#bfefff', w = 6, life = 0.45) {
     fx.slashes.push({ x1, y1, x2, y2, color, w, life, max: life });
   }
   function burst(x, y, n, color, speed = 220, g = 260, size = 3) {
@@ -434,97 +523,139 @@ DS.Scene = function (canvas) {
       fx.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, g, size, color, life, max: life });
     }
   }
-  function text(x, y, str, color, size = 28) { fx.texts.push({ x, y, text: str, color, size, life: 1.1 }); }
-  function ring(x, y, color, r = 6, grow = 60, life = 0.5) { fx.rings.push({ x, y, color, r, grow, life, max: life }); }
-  // 수학 좌표 (x, y) 를 지나고 기울기 k 인 긴 참격
-  function slopeSlash(px, py, k, color, half = 5) {
-    const len = Math.hypot(1, k), dx = half / len, dy = (half * k) / len;
-    const a = pl(px - dx, py - dy), b = pl(px + dx, py + dy);
-    slash(a.x, a.y, b.x, b.y, color, 7, 0.55);
+  function text(x, y, str, color, size = 28) { fx.texts.push({ x, y, text: str, color, size, life: 1.2 }); }
+  function ring(x, y, color, r = 6, grow = 60, life = 0.6) { fx.rings.push({ x, y, color, r, grow, life, max: life }); }
+  function shards(cx, cy, n, spread, colors) {
+    for (let i = 0; i < n; i++) {
+      fx.shards.push({
+        x: cx + (Math.random() - 0.5) * spread, y: cy, vx: (Math.random() - 0.3) * 340, vy: -150 - Math.random() * 300,
+        rot: Math.random() * 6, vr: (Math.random() - 0.5) * 20, w: 6 + Math.random() * 10, h: 4 + Math.random() * 6,
+        color: colors[i % colors.length], life: 2.2,
+      });
+    }
   }
+  const toCanvas = (x, y) => (B.prob.figure.kind === 'numberline' ? { x: nl(x), y: NL_Y } : pl(x, y));
 
-  return {
-    setBattle(b) { B = b; resetFx(); },
-    enemyCenter,
-
-    // 플레이어 공격 연출. kind 는 카드 id, params 는 문제 생성기의 params
-    heroAttack(kind, params) {
-      const c = enemyCenter();
-      fx.heroDx = 70;
-      const e = B && B.enemy;
-      if (kind === 'segLen' && e.ctx) {
-        slash(nl(e.ctx.a), NL_Y, nl(e.ctx.b), NL_Y, '#ffd166', 6, 0.5);
-        slash(c.x - 50, c.y - 60, c.x + 50, c.y + 60, '#ffd166', 7);
-      } else if (kind === 'dist') {
-        slash(c.x - 80, c.y + 70, c.x + 80, c.y - 70, '#7df9ff', 8, 0.5);
-        slash(c.x - 80, c.y - 10, c.x + 80, c.y - 10, '#7df9ff', 4, 0.4);
-      } else if (kind === 'divide') {
-        slash(HERO.x + 40, HERO.y - 60, c.x, c.y + 10, '#c792ff', 5, 0.35);
-        ring(c.x, c.y + 10, '#c792ff', 6, 80);
-      } else if (kind === 'perp' && e.ctx) {
-        const m = e.ctx.m.n / e.ctx.m.d;
-        slopeSlash(e.ctx.P.a, e.ctx.P.b, -1 / m, '#7df9ff', 6);
-      } else if (kind === 'line' && e.ctx) {
-        const k = params && params.k != null ? params.k : 1;
-        slopeSlash(e.ctx.P.a, e.ctx.P.b, k, '#ff9df0', 6);
-        const p = pl(e.ctx.P.a, e.ctx.P.b);
-        ring(p.x, p.y, '#ff9df0', 8, 50);
-      } else {
-        slash(c.x - 45, c.y - 55, c.x + 45, c.y + 55, '#bfefff', 6);
-        slash(c.x + 45, c.y - 55, c.x - 45, c.y + 55, '#bfefff', 6);
+  function shatter(kind) {
+    const a = anchor();
+    if (kind === 'golemArmor') {
+      const u = SPR.golem.u;
+      for (const plate of SPR.golem.plates) {
+        const [x, y, w] = plate[0];
+        shards(a.x + (x + w / 2) * u, a.y + y * u, 8, w * u, ['#9fb4c7', '#7d93a8']);
       }
-    },
-    enemyHit(dmg, note) {
-      const c = enemyCenter();
-      fx.enemyFlash = 0.12;
-      fx.shake = Math.max(fx.shake, dmg >= 15 ? 14 : 7);
-      burst(c.x, c.y, dmg >= 15 ? 36 : 18, note ? '#ffd166' : '#7df9ff');
-      text(c.x + (Math.random() - 0.5) * 30, c.y - 40, String(dmg), note ? '#ffd166' : '#ffffff', dmg >= 15 ? 38 : 30);
-      if (note) text(c.x, c.y - 80, note, '#ffd166', 16);
-    },
-    blocked(amount) {
-      const c = enemyCenter();
-      text(c.x, c.y - 20, `방어 −${amount}`, '#9fb4c7', 16);
-    },
-    armorShatter(plateIndex) {
-      const a = enemyAnchor(), u = SPR.golem.u;
-      const [x, y, w, h] = SPR.golem.plates[plateIndex][0];
-      const cx = a.x + (x + w / 2) * u, cy = a.y + (y + h / 2) * u;
-      for (let i = 0; i < 14; i++) {
-        fx.shards.push({
-          x: cx + (Math.random() - 0.5) * w * u, y: cy, vx: (Math.random() - 0.3) * 320, vy: -150 - Math.random() * 300,
-          rot: Math.random() * 6, vr: (Math.random() - 0.5) * 20, w: 6 + Math.random() * 10, h: 4 + Math.random() * 6,
-          color: Math.random() < 0.5 ? '#9fb4c7' : '#7d93a8', life: 2.2,
-        });
-      }
-      burst(cx, cy, 30, '#d6e4f0', 300);
-      fx.flash = { color: '#ffffff', life: 0.15, max: 0.15 };
-      fx.shake = 18;
-      text(cx, cy - 30, 'ARMOR BREAK!', '#d6e4f0', 22);
-    },
-    shieldShatter() {
-      const s = shieldSegment(B.enemy.ctx);
+      text(a.x, a.y - 150, 'ARMOR BREAK!', '#d6e4f0', 22);
+    } else if (kind === 'shield') {
+      const el = B.prob.figure.els.find((e) => e.t === 'shield');
+      const s = shieldSegment(el);
       for (let i = 0; i < 18; i++) {
         const t = Math.random();
         fx.shards.push({
-          x: s.a.x + (s.b.x - s.a.x) * t, y: s.a.y + (s.b.y - s.a.y) * t,
-          vx: (Math.random() - 0.3) * 300, vy: -100 - Math.random() * 250, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 18,
-          w: 6 + Math.random() * 8, h: 3 + Math.random() * 3, color: '#ffd166', life: 2,
+          x: s.a.x + (s.b.x - s.a.x) * t, y: s.a.y + (s.b.y - s.a.y) * t, vx: (Math.random() - 0.3) * 300, vy: -100 - Math.random() * 250,
+          rot: Math.random() * 6, vr: (Math.random() - 0.5) * 18, w: 6 + Math.random() * 8, h: 3 + Math.random() * 3, color: '#ffd166', life: 2,
         });
       }
       ring(s.foot.x, s.foot.y, '#ffffff', 4, 70, 0.4);
-      fx.flash = { color: '#fff3c4', life: 0.15, max: 0.15 };
-      fx.shake = 16;
-      text(s.foot.x, s.foot.y - 30, '방패 파괴! (mm′ = −1)', '#fff3c4', 18);
+    } else if (kind === 'octagon') {
+      const hy = a.y - 19 * SPR.boss.u;
+      for (let k = 0; k < 8; k++) {
+        const ang = (k * Math.PI) / 4;
+        shards(a.x + Math.cos(ang) * 30, hy + Math.sin(ang) * 30, 4, 10, ['#9fb4c7', '#d6e4f0']);
+      }
+      burst(a.x, hy, 60, '#ff3355', 380);
+    }
+    fx.flash = { color: '#ffffff', life: 0.18, max: 0.18 };
+    fx.shake = 18;
+  }
+
+  return {
+    setBattle(b) {
+      B = b;
+      resetFx();
+      map = b.prob.figure.kind === 'plane' ? makeMap(b.prob.figure.view) : null;
+      Object.keys(bgCache).forEach((k) => delete bgCache[k]);
     },
-    shieldDeflect() { fx.shieldFlash = 0.15; },
+    enemyCenter,
+
+    heroStrike() {
+      const c = enemyCenter();
+      fx.heroDx = 70;
+      slash(c.x - 45, c.y - 55, c.x + 45, c.y + 55, '#bfefff', 6);
+      slash(c.x + 45, c.y - 55, c.x - 45, c.y + 55, '#bfefff', 6);
+    },
+    // 풀이 단계 성공 연출: 문제 그림 위에서 실제 좌표대로 벤다
+    stepFx(f = {}) {
+      fx.heroDx = 70;
+      const color = f.color || '#ffd166';
+      if (f.nslash) slash(nl(f.nslash[0]), NL_Y, nl(f.nslash[1]), NL_Y, '#7df9ff', 7, 0.6);
+      if (f.slash) {
+        const a = toCanvas(f.slash[0], f.slash[1]), b = toCanvas(f.slash[2], f.slash[3]);
+        slash(a.x, a.y, b.x, b.y, color, 8, 0.7);
+        if (f.trace) fx.traces.push({ a, b, color: '#7df9ff' });
+      }
+      if (f.ring) {
+        const p = toCanvas(f.ring[0], f.ring[1]);
+        ring(p.x, p.y, '#ffffff', f.ringR ? f.ringR * map.U : 6, f.ringR ? 10 : 70, 0.7);
+      }
+      if (f.triSlash) {
+        const t = B.prob.figure.els.find((e) => e.t === 'tri');
+        const ps = t.pts.map(([x, y]) => pl(x, y));
+        for (let i = 0; i < 3; i++) slash(ps[i].x, ps[i].y, ps[(i + 1) % 3].x, ps[(i + 1) % 3].y, '#ffd166', 6, 0.8);
+      }
+      if (f.xslash) {
+        const c = enemyCenter();
+        slash(c.x - 110, c.y - 110, c.x + 110, c.y + 110, '#7df9ff', 10, 0.8);
+        slash(c.x + 110, c.y - 110, c.x - 110, c.y + 110, '#7df9ff', 10, 0.8);
+        if (f.trace) {
+          fx.traces.push({ a: { x: c.x - 110, y: c.y - 110 }, b: { x: c.x + 110, y: c.y + 110 }, color: '#7df9ff' });
+          fx.traces.push({ a: { x: c.x + 110, y: c.y - 110 }, b: { x: c.x - 110, y: c.y + 110 }, color: '#7df9ff' });
+        }
+      }
+      if (f.shatter) shatter(f.shatter);
+      if (f.finisher) {
+        const c = enemyCenter();
+        for (let i = 0; i < 6; i++) {
+          const ang = (i * Math.PI) / 3;
+          slash(c.x - Math.cos(ang) * 160, c.y - Math.sin(ang) * 160, c.x + Math.cos(ang) * 160, c.y + Math.sin(ang) * 160, '#ffd166', 9, 0.9);
+        }
+        fx.flash = { color: '#ffffff', life: 0.4, max: 0.4 };
+        fx.shake = 24;
+      }
+    },
+    enemyHit(dmg, note, crit) {
+      const c = enemyCenter();
+      fx.enemyFlash = 0.12;
+      fx.shake = Math.max(fx.shake, crit ? 20 : dmg >= 12 ? 12 : 6);
+      burst(c.x, c.y, crit ? 50 : dmg >= 12 ? 30 : 16, crit ? '#ffd166' : '#7df9ff', crit ? 360 : 220);
+      if (crit) {
+        fx.hitstop = 0.14;
+        fx.flash = { color: '#ffd166', life: 0.2, max: 0.2 };
+        text(c.x, c.y - 70, 'CRITICAL!', '#ffd166', 30);
+      }
+      text(c.x + (Math.random() - 0.5) * 30, c.y - 30, String(dmg), crit ? '#ffd166' : '#ffffff', crit ? 44 : dmg >= 12 ? 36 : 30);
+      if (note) text(c.x, c.y - 100, note, '#ffd166', 15);
+    },
+    gateLock() {
+      const c = enemyCenter();
+      ring(c.x, c.y, '#ffd166', 30, 20, 0.5);
+      text(c.x, c.y - 120, '문턱! 풀이가 필요하다', '#ffd166', 16);
+      fx.shieldFlash = 0.15;
+    },
+    blocked(amount) {
+      const c = enemyCenter();
+      text(c.x, c.y - 10, `방어 −${amount}`, '#9fb4c7', 16);
+    },
     heroGuard(amount) {
       ring(HERO.x, HERO.y - 50, '#4cc9ff', 20, 30, 0.45);
       text(HERO.x, HERO.y - 110, `+${amount} 방어`, '#4cc9ff', 18);
     },
     fizzle() {
       burst(HERO.x + 20, HERO.y - 60, 14, '#6f68a8', 120, 100, 2);
-      text(HERO.x + 20, HERO.y - 110, '수식 붕괴…', '#9a95c0', 16);
+      text(HERO.x + 30, HERO.y - 110, '수식 붕괴…', '#9a95c0', 16);
+    },
+    wrongTool() {
+      ring(HERO.x + 20, HERO.y - 60, '#9a95c0', 10, 30, 0.4);
+      text(HERO.x + 40, HERO.y - 110, '맞지 않는 도구', '#9a95c0', 15);
     },
     enemyAttack(dmg, blocked) {
       fx.enemyDx = -80;
@@ -540,7 +671,11 @@ DS.Scene = function (canvas) {
     enemyBuff(label) {
       const c = enemyCenter();
       ring(c.x, c.y, '#9fb4c7', 20, 40, 0.5);
-      text(c.x, c.y - 70, label, '#9fb4c7', 16);
+      text(c.x, c.y - 90, label, '#9fb4c7', 16);
+    },
+    note(str, color = '#ffd166') {
+      const c = enemyCenter();
+      text(c.x - 60, c.y - 140, str, color, 17);
     },
     enemyDeath() {
       const c = enemyCenter();
@@ -554,6 +689,7 @@ DS.Scene = function (canvas) {
       };
       fade();
     },
+    setSlowmo(on) { fx.slowmo = on; },
     rewind(seconds = 1.6) { fx.glitch = seconds; fx.glitchMax = seconds; },
   };
 };

@@ -16,10 +16,13 @@
   <!-- 타이틀 -->
   <section id="screen-title" class="screen active">
     <div class="title-wrap">
-      <p class="eyebrow">공통수학2 · Ⅰ. 도형의 방정식</p>
+      <p class="eyebrow">공통수학2 · Ⅰ. 도형의 방정식 · v0.2</p>
       <h1 class="logo">DIMENSION<br><span>SLASHER</span></h1>
-      <p class="tagline">수식으로만 벨 수 있는 탑. 공식을 벼려 차원을 베어라.</p>
-      <button id="btn-start" class="btn primary big">시작하기</button>
+      <p class="tagline">몬스터는 곧 문제다. 공식을 벼려 풀이로 베어라.</p>
+      <div class="title-btns">
+        <button id="btn-start" class="btn primary big">캠페인 (1·2층)</button>
+        <button id="btn-trial" class="btn boss big">최종보스 체험판</button>
+      </div>
       <p class="hint">PC: 문제 창에서 숫자 1~4로 선택, E로 턴 종료</p>
     </div>
   </section>
@@ -29,9 +32,9 @@
     <div class="story">
       <p class="loop-big">LOOP 001</p>
       <p>탑의 꼭대기에서 저주에 걸린 순간, 모든 것이 <b>0</b>으로 돌아갔다.</p>
-      <p>1층 바닥에서 눈을 뜬 나에게 남은 건 희미한 <b>중학교의 기억</b>뿐.</p>
-      <p>이 탑의 괴물은 칼로는 베어지지 않는다. 정확한 <b class="c-gold">수식</b>으로만 벨 수 있다.</p>
-      <p>캠프의 대장간에서 기억의 부품을 조합해 <b class="c-cyan">공식</b>을 벼려라.</p>
+      <p>이 탑의 괴물은 하나하나가 <b class="c-gold">풀리지 않은 문제</b>다. 칼로 베어도 문턱에서 막힌다.</p>
+      <p>알맞은 <b class="c-cyan">공식</b>을 꺼내 풀이를 한 단계씩 해내야 문턱이 깨진다.</p>
+      <p>캠프의 대장간에서 기억의 부품을 조합해 공식을 벼려라.</p>
       <p class="muted">쓰러져도 괜찮다. 시간은 되감긴다.</p>
       <button id="btn-story" class="btn primary">캠프로 ▶</button>
     </div>
@@ -46,28 +49,30 @@
       </div>
       <button class="btn small mute">소리 켬</button>
     </header>
+    <p id="camp-next" class="camp-next"></p>
 
     <div class="panel">
-      <p class="howto">부품을 <b>모루 슬롯</b>으로 끌어다 놓거나 눌러서 올리세요. 3개를 채우고 <b>연성</b>! 슬롯을 누르면 부품을 뺍니다.</p>
+      <p class="howto">재료(부품·카드)와 연산을 <b>모루</b>에 끌어다 놓거나 눌러서 올리고 <b>연성</b>! 공식은 한 단계씩 만들어요. 슬롯을 누르면 뺍니다.</p>
       <div class="anvil">
-        <div class="slot" data-i="0"></div>
-        <span class="op">+</span>
-        <div class="slot" data-i="1"></div>
-        <span class="op">+</span>
-        <div class="slot" data-i="2"></div>
+        <div class="slot" data-k="a"></div>
+        <div class="slot op-slot" data-k="op"></div>
+        <div class="slot" data-k="b"></div>
       </div>
       <div class="forge-row"><button id="forge-btn" class="btn primary" disabled>⚒ 연성</button></div>
       <div id="forge-msg" class="forge-msg"></div>
     </div>
 
+    <h3>연산 <span class="muted small">무한</span></h3>
+    <div id="ops" class="parts"></div>
+
     <h3>부품 가방</h3>
     <div id="parts" class="parts"></div>
 
+    <h3>내 덱 (<span id="deck-count">0</span>장) <span class="muted small">일반·매직 카드는 재료로 쓸 수 있어요 (쓰면 사라짐)</span></h3>
+    <div id="deck" class="deck"></div>
+
     <h3>레시피 도감</h3>
     <div id="recipes" class="recipes"></div>
-
-    <h3>현재 덱 (<span id="deck-count">0</span>장)</h3>
-    <div id="deck" class="deck"></div>
 
     <div class="depart-row"><button id="depart" class="btn primary big">출발 ▶</button></div>
   </section>
@@ -79,18 +84,19 @@
       <button class="btn small mute">소리 켬</button>
     </header>
 
+    <div class="prob-panel">
+      <div class="prob-head"><span class="prob-tag">문제</span><span id="prob-steps" class="steps"></span></div>
+      <p id="prob-text" class="prob-text math"></p>
+      <p id="prob-goal" class="prob-goal"></p>
+    </div>
+
     <div class="enemy-hud">
-      <div class="row">
-        <b id="e-name"></b>
-        <span id="e-status"></span>
-      </div>
-      <div class="hpbar enemy"><i id="e-hpfill"></i><span id="e-hptext"></span></div>
+      <div class="row"><b id="e-name"></b><span id="e-status"></span></div>
+      <div class="hpbar enemy"><i id="e-hpfill"></i><span id="e-gates" class="gates"></span><span id="e-hptext"></span></div>
       <div id="e-intent" class="intent-line"></div>
     </div>
 
     <div class="stage-wrap"><canvas id="stage"></canvas></div>
-    <div id="e-ctx" class="ctx-line"></div>
-    <p id="b-rule" class="rule"></p>
 
     <div class="player-hud">
       <div class="hpbar player"><i id="p-hpfill"></i><span id="p-hptext"></span></div>
@@ -106,21 +112,37 @@
   <section id="screen-reward" class="screen">
     <div class="story">
       <h2 id="reward-title"></h2>
-      <p>잔해 속에서 새로운 기억의 부품을 얻었다.</p>
+      <p id="reward-desc"></p>
       <div id="reward-parts" class="parts center"></div>
       <p id="reward-next" class="muted"></p>
       <button id="reward-go" class="btn primary">캠프로 ▶</button>
     </div>
   </section>
 
-  <!-- 클리어 -->
+  <!-- 캠페인 클리어 -->
   <section id="screen-clear" class="screen">
     <div class="story">
       <h2>2층 돌파!</h2>
       <p>방패 거수의 심장이 수직의 일격에 갈라졌다.</p>
       <table id="clear-stats" class="stats"></table>
       <p class="muted">3층 · 점과 직선 사이의 거리 &amp; 원 — 개발 중</p>
-      <button id="btn-restart" class="btn primary">처음부터</button>
+      <div class="title-btns">
+        <button id="btn-clear-trial" class="btn boss">최종보스 체험판 도전 ▶</button>
+        <button id="btn-restart" class="btn">처음부터</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 최종보스 체험판 클리어 -->
+  <section id="screen-trial-clear" class="screen">
+    <div class="story">
+      <h2>차원 군주 섬멸!</h2>
+      <p>서술형 풀이 여섯 단계가 하나의 참격이 되었다.</p>
+      <table id="trial-stats" class="stats"></table>
+      <div class="title-btns">
+        <button id="btn-trial-again" class="btn boss">다시 도전</button>
+        <button id="btn-trial-title" class="btn">타이틀로</button>
+      </div>
     </div>
   </section>
 
@@ -142,8 +164,12 @@
 
 <script src="js/mathgen.js"></script>
 <script src="js/data.js"></script>
+<script src="js/craft.js"></script>
+<script src="js/monsters.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/quiz.js"></script>
+<script src="js/challenge.js"></script>
+<script src="js/cinematic.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/forge.js"></script>
 <script src="js/battle.js"></script>

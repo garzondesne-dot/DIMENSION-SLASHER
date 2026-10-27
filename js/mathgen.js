@@ -121,10 +121,15 @@ DS.MathGen = (function () {
   }
 
   // 좌표평면 위 두 점 사이의 거리 (교과서 14쪽)
-  function dist2D() {
-    const x1 = ri(-4, 4), y1 = ri(-4, 4);
+  // ctx 로 두 점을 고정할 수 있다: { x1, y1, x2, y2, labels: ['O', 'P'] }
+  function dist2D(ctx = {}) {
+    const fixed = ctx.x1 != null;
+    const x1 = fixed ? ctx.x1 : ri(-4, 4), y1 = fixed ? ctx.y1 : ri(-4, 4);
+    const [L1, L2] = ctx.labels || ['A', 'B'];
     let dx, dy;
-    if (Math.random() < 0.4) {
+    if (fixed) {
+      dx = ctx.x2 - x1; dy = ctx.y2 - y1;
+    } else if (Math.random() < 0.4) {
       [dx, dy] = pick([[3, 4], [4, 3]]);
       dx *= pick([1, -1]); dy *= pick([1, -1]);
     } else {
@@ -143,13 +148,13 @@ DS.MathGen = (function () {
     const tail = ans === `√${s}` ? '' : ` = ${ans}`;
     return finish({
       kind: 'dist2D',
-      question: `두 점 A${pt(x1, y1)}, B${pt(x2, y2)} 사이의 거리 AB는?`,
+      question: `두 점 ${L1}${pt(x1, y1)}, ${L2}${pt(x2, y2)} 사이의 거리 ${L1}${L2}는?`,
       answer: ans,
       distractors: wrong,
-      solution: `AB = √((x₂${M}x₁)² + (y₂${M}y₁)²) = √(${par(dx)}² + ${par(dy)}²) = √${s}${tail}`,
+      solution: `${L1}${L2} = √((x₂${M}x₁)² + (y₂${M}y₁)²) = √(${par(dx)}² + ${par(dy)}²) = √${s}${tail}`,
       diagram: {
         type: 'plane',
-        points: [{ x: x1, y: y1, label: 'A' }, { x: x2, y: y2, label: 'B' }],
+        points: [{ x: x1, y: y1, label: L1 }, { x: x2, y: y2, label: L2 }],
         segments: [[x1, y1, x2, y2]],
         guides: [[x1, y1, x2, y1], [x2, y1, x2, y2]],
       },
@@ -158,11 +163,14 @@ DS.MathGen = (function () {
   }
 
   // 수직선 위 선분의 내분점 (교과서 13쪽)
-  function div1D() {
+  function div1D(ctx = {}) {
     let x1, x2, m, n;
-    do {
-      x1 = ri(-8, 8); x2 = ri(-8, 8); m = ri(1, 4); n = ri(1, 4);
-    } while (x1 === x2 || m === n || (m * x2 + n * x1) % (m + n) !== 0);
+    if (ctx.x1 != null) ({ x1, x2, m, n } = ctx);
+    else {
+      do {
+        x1 = ri(-8, 8); x2 = ri(-8, 8); m = ri(1, 4); n = ri(1, 4);
+      } while (x1 === x2 || m === n || (m * x2 + n * x1) % (m + n) !== 0);
+    }
     const p = (m * x2 + n * x1) / (m + n);
     const wrong = [
       fracStr(frac(m * x1 + n * x2, m + n)), // m, n을 바꿔 곱함
@@ -182,12 +190,15 @@ DS.MathGen = (function () {
   }
 
   // 좌표평면 위 선분의 내분점 (교과서 15쪽)
-  function div2D() {
+  function div2D(ctx = {}) {
     let x1, y1, x2, y2, m, n;
-    do {
-      x1 = ri(-6, 6); y1 = ri(-6, 6); x2 = ri(-6, 6); y2 = ri(-6, 6); m = ri(1, 3); n = ri(1, 3);
-    } while ((x1 === x2 && y1 === y2) || m === n
-      || (m * x2 + n * x1) % (m + n) !== 0 || (m * y2 + n * y1) % (m + n) !== 0);
+    if (ctx.x1 != null) ({ x1, y1, x2, y2, m, n } = ctx);
+    else {
+      do {
+        x1 = ri(-6, 6); y1 = ri(-6, 6); x2 = ri(-6, 6); y2 = ri(-6, 6); m = ri(1, 3); n = ri(1, 3);
+      } while ((x1 === x2 && y1 === y2) || m === n
+        || (m * x2 + n * x1) % (m + n) !== 0 || (m * y2 + n * y1) % (m + n) !== 0);
+    }
     const px = (m * x2 + n * x1) / (m + n), py = (m * y2 + n * y1) / (m + n);
     const ans = pt(px, py);
     const wrong = [
@@ -279,8 +290,11 @@ DS.MathGen = (function () {
       fromShield = false;
     }
     const k = m.n;
-    let a, b;
-    do { a = ri(-4, 4); b = ri(-4, 4); } while (b === k * a + n);
+    let a = ctx.a, b = ctx.b;
+    if (a == null || b == null || b === k * a + n) {
+      do { a = ri(-4, 4); b = ri(-4, 4); } while (b === k * a + n);
+    }
+    const lineName = ctx.lineName || (fromShield ? '방패의 직선' : '결계선');
     const c = b - k * a;
     const ans = lineStr(k, c);
     const wrong = [
@@ -292,7 +306,7 @@ DS.MathGen = (function () {
     ];
     return finish({
       kind: 'parallel',
-      question: `점 Q${pt(a, b)}${eulReul(b)} 지나고 ${fromShield ? '방패의 직선' : '결계선'} ${lineStr(m, n)}에 평행한 직선의 방정식은?`,
+      question: `점 Q${pt(a, b)}${eulReul(b)} 지나고 ${lineName} ${lineStr(m, n)}에 평행한 직선의 방정식은?`,
       answer: ans,
       distractors: wrong,
       solution: `평행하면 기울기가 같으므로 m′ = ${num(k)}.  ${shift('y', b)} = ${kTimes(k, a)}  →  ${ans}`,

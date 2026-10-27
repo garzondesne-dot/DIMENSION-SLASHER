@@ -113,6 +113,15 @@ DS.Sound = (function () {
       tone({ type: 'sawtooth', f0: 900, f1: 80, dur: 1.2, vol: 0.1 });
       for (let i = 0; i < 10; i++) noise({ dur: 0.08, vol: 0.15, freq: 1500 + i * 300, delay: i * 0.11 });
     },
+    whoosh() { noise({ dur: 0.35, vol: 0.3, freq: 500, sweepTo: 4000, q: 0.8 }); },
+    heartbeat() {
+      tone({ type: 'sine', f0: 70, f1: 40, dur: 0.14, vol: 0.6 });
+      tone({ type: 'sine', f0: 65, f1: 38, dur: 0.16, vol: 0.45, delay: 0.18 });
+    },
+    crit() {
+      tone({ type: 'square', f0: 1600, f1: 3200, dur: 0.12, vol: 0.12 });
+      noise({ dur: 0.3, vol: 0.4, freq: 8000, sweepTo: 1500, q: 1.5 });
+    },
     victory() {
       [523, 659, 784, 1047].forEach((f, i) => tone({ type: 'triangle', f0: f, dur: 0.45, vol: 0.18, delay: i * 0.12 }));
     },

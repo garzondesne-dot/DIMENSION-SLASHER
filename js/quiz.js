@@ -5,9 +5,9 @@ DS.UI = {
   esc(s) {
     return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   },
-  // '1/2' 같은 분수를 세로 분수로 표시
+  // '1/2', '2√3/3' 같은 분수를 세로 분수로 표시
   pretty(s) {
-    return DS.UI.esc(s).replace(/(\d+)\/(\d+)/g, '<span class="fr"><span>$1</span><span>$2</span></span>');
+    return DS.UI.esc(s).replace(/((?:\d*√)?\d+)\/(\d+)/g, '<span class="fr"><span>$1</span><span>$2</span></span>');
   },
 };
 
@@ -50,6 +50,7 @@ DS.Diagram = (function () {
     const xs = [0], ys = [0];
     (d.points || []).forEach((p) => { xs.push(p.x); ys.push(p.y); });
     (d.segments || []).forEach(([a, b, c, e]) => { xs.push(a, c); ys.push(b, e); });
+    (d.circles || []).forEach((c) => { xs.push(c.cx - c.r, c.cx + c.r); ys.push(c.cy - c.r, c.cy + c.r); });
     let x0 = Math.min(...xs) - 2, x1 = Math.max(...xs) + 2, y0 = Math.min(...ys) - 2, y1 = Math.max(...ys) + 2;
     if (x1 - x0 < 10) { const c = (x0 + x1) / 2; x0 = c - 5; x1 = c + 5; }
     if (y1 - y0 < 8) { const c = (y0 + y1) / 2; y0 = c - 4; y1 = c + 4; }
@@ -84,6 +85,12 @@ DS.Diagram = (function () {
       g.strokeStyle = '#ffd166';
       g.lineWidth = 3;
       g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+    });
+    (d.circles || []).forEach((c) => {
+      const p = P(c.cx, c.cy);
+      g.strokeStyle = '#c792ff';
+      g.lineWidth = 3;
+      g.beginPath(); g.arc(p.x, p.y, c.r * u, 0, Math.PI * 2); g.stroke();
     });
     g.setLineDash([5, 5]);
     g.strokeStyle = '#8f8aa8';
