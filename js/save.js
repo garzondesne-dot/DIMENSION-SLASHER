@@ -18,16 +18,17 @@ DS.Save = (function () {
       node: G.node, maxNode: G.maxNode, loop: G.loop,
       cards: G.cards, deckUids: [...G.deckUids], bag: G.bag,
       discovered: [...G.discovered], mastery: G.mastery, granted: [...G.granted],
-      params, stats: G.stats,
+      params, stats: G.stats, tutorial: G.tutorial || null,
     };
   }
   // 저장 객체 → 게임 상태 (문제는 node 번호의 몬스터로 다시 만든다)
   function unpack(d) {
     if (!d || d.ver !== VER) return null;
-    // v0.2.1 저장: 점 A·B를 하나의 "점" 부품으로 합친다 (v0.2.1.1)
-    if (d.bag && (d.bag.ptA != null || d.bag.ptB != null)) {
-      d.bag.pt = (d.bag.pt || 0) + (d.bag.ptA || 0) + (d.bag.ptB || 0);
-      delete d.bag.ptA; delete d.bag.ptB;
+    // 옛 저장의 점 부품 변환 (v0.2.2): 점 A → x₁, 점 B → x₂, 통합했던 점(v0.2.1.1) → 반씩, 남는 1개는 x₁
+    if (d.bag) {
+      const b = d.bag;
+      if (b.ptA != null || b.ptB != null) { b.x1 = (b.x1 || 0) + (b.ptA || 0); b.x2 = (b.x2 || 0) + (b.ptB || 0); delete b.ptA; delete b.ptB; }
+      if (b.pt != null) { b.x1 = (b.x1 || 0) + Math.ceil(b.pt / 2); b.x2 = (b.x2 || 0) + Math.floor(b.pt / 2); delete b.pt; }
     }
     const problems = {};
     Object.entries(d.params || {}).forEach(([i, p]) => {
@@ -38,7 +39,7 @@ DS.Save = (function () {
       node: d.node, maxNode: d.maxNode != null ? d.maxNode : d.node, loop: d.loop,
       cards: d.cards, deckUids: new Set(d.deckUids), bag: d.bag,
       discovered: new Set(d.discovered), mastery: d.mastery, granted: new Set(d.granted),
-      problems, stats: d.stats,
+      problems, stats: d.stats, tutorial: d.tutorial || null,
     };
   }
 

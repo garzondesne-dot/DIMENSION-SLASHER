@@ -16,7 +16,9 @@ DS.Tiers = {
 // ── 부품 (부품 가방) ──────────────────────────────────────
 // mid: 바로 다음 연성으로 넘어가는 중간 단계. inf: 무한 제공(소재로 세지 않음)
 DS.Parts = {
-  pt: { name: '점', sym: 'A·B', pair: true }, // 두 점 재료: 모루 왼쪽 칸은 A, 오른쪽 칸은 B로 표시 (v0.2.1.1에서 점 A·B 통합)
+  // 두 점 재료 (v0.2.2: 통합했던 점을 x₁·x₂로 다시 분리, 분해 때는 적은 쪽부터 돌려받아 짝이 깨지지 않음)
+  x1: { name: '점 x₁', sym: 'x₁' },
+  x2: { name: '점 x₂', sym: 'x₂' },
   pt1: { name: '한 점', sym: '(x₁, y₁)' },
   sumSq: { name: '제곱의 합', sym: '(x₂−x₁)²+(y₂−y₁)²', mid: true },
   slope: { name: '기울기', sym: 'm = (y₂−y₁)/(x₂−x₁)', mid: true },
@@ -76,8 +78,9 @@ DS.Affixes = {
 DS.SCAN_CHANCE = 0.35; // 일반 카드에 스캔이 붙을 확률
 
 // ── 버전 · 베타 테스트 설정 ─────────────────────────────────
-DS.VERSION = 'v0.2.1.1';
-DS.BETA = true; // 베타 테스트 한정 기능(조합법 창, BETA 표시). 정식판에서는 false
+DS.VERSION = 'v0.2.2';
+DS.BETA = true; // 베타 테스트 표시(BETA 배지·안내). 정식판에서는 false
+DS.GUIDE = false; // 조합법 전체 공개 창 (v0.2.2에서 끔: 발견하는 재미 유지, 대신 첫 연성 튜토리얼)
 // 결과 보내기: 선생님 구글 시트에 연결한 Apps Script 웹 앱 주소. 비어 있으면 결과 코드만 보여 준다.
 DS.REPORT_URL = '';
 
@@ -93,12 +96,12 @@ DS.Progress = {
     2: { title: '2층 · 직선의 성벽', unit: '직선의 위치 관계 (교과서 18~22쪽)' },
   },
   nodes: [
-    { type: 'camp', floor: 1, parts: { pt: 12 } },
-    { type: 'battle', floor: 1, monster: 'slime', reward: { pt: 8 } },
+    { type: 'camp', floor: 1, parts: { x1: 6, x2: 6 } },
+    { type: 'battle', floor: 1, monster: 'slime', reward: { x1: 4, x2: 4 } },
     { type: 'camp', floor: 1 },
-    { type: 'battle', floor: 1, monster: 'golem', reward: { pt: 12, pt1: 2 } },
+    { type: 'battle', floor: 1, monster: 'golem', reward: { x1: 6, x2: 6, pt1: 2 } },
     { type: 'camp', floor: 2 },
-    { type: 'battle', floor: 2, monster: 'bat', reward: { pt: 8, pt1: 1 } },
+    { type: 'battle', floor: 2, monster: 'bat', reward: { x1: 4, x2: 4, pt1: 1 } },
     { type: 'camp', floor: 2 },
     { type: 'battle', floor: 2, monster: 'beast' },
     { type: 'clear' },

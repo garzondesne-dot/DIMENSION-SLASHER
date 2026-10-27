@@ -27,8 +27,8 @@ const tok = (k) => {
 };
 
 // ── 1. 연성 나무 ──────────────────────────────────────────
-// 시작 부품(점, 한 점, 무한 m′)에서 규칙을 반복 적용해 도달 가능한 결과
-const have = new Set(['part:pt', 'part:pt1', 'part:mPrime']);
+// 시작 부품(점 x₁·x₂, 한 점, 무한 m′)에서 규칙을 반복 적용해 도달 가능한 결과
+const have = new Set(['part:x1', 'part:x2', 'part:pt1', 'part:mPrime']);
 for (let round = 0; round < 8; round++) {
   for (const r of Craft.RULES) {
     if (r.in.every((k) => have.has(k))) {
@@ -47,17 +47,18 @@ for (const r of Craft.RULES) {
   check(res.ok && res.out.id === r.out.id, `규칙 불일치: ${r.op} ${r.in}`);
 }
 // 빼는 순서는 상관없음, 나눗셈 순서는 중요
-check(Craft.match('minus', tok('part:pt'), tok('part:pt')).out.id === 'diff', '[점] − [점] → 차이');
+check(Craft.match('minus', tok('part:x2'), tok('part:x1')).out.id === 'diff' && Craft.match('minus', tok('part:x1'), tok('part:x2')).out.id === 'diff', '빼는 순서 무관');
+check(!Craft.match('minus', tok('part:x1'), tok('part:x1')).ok && /같은 점/.test(Craft.match('minus', tok('part:x1'), tok('part:x1')).msg), '같은 점끼리 빼기 피드백');
 check(Craft.match('div', tok('card:diff@y'), tok('card:diff@x')).out.id === 'slope', '세로 ÷ 가로 = 기울기');
 check(/거꾸로/.test(Craft.match('div', tok('card:diff@x'), tok('card:diff@y')).msg), '나눗셈 역순 피드백');
 check(/세로/.test(Craft.match('div', tok('card:diff@x'), tok('card:diff@x')).msg), '같은 축 나눗셈 피드백');
 check(/축|세로/.test(Craft.match('plus', tok('card:diffSq@x'), tok('card:diffSq@x')).msg), '같은 축 제곱 합 피드백');
-check(/중점/.test(Craft.match('plus', tok('part:pt'), tok('part:pt')).msg), '중점 피드백');
+check(/중점/.test(Craft.match('plus', tok('part:x1'), tok('part:x2')).msg), '중점 피드백');
 check(/두 점의 좌표/.test(Craft.match('ratio', tok('card:segLen@x')).msg), '내분점 = 두 점 피드백');
 check(Craft.match('sq', tok('card:segLen@y')).out.id === 'diffSq' && Craft.match('sq', tok('card:segLen@y')).out.axis === 'y', '선분² = 차이² (축 유지)');
 check(!Craft.match('times', tok('part:pt1'), tok('part:mPrime')).ok, 'm′ 은 기울기에만 반응');
 check(/m′/.test(Craft.match('plus', tok('part:slope'), tok('part:mPrime')).msg), 'm′ 피드백');
-check(/V0.4/.test(Craft.match('simul', tok('part:pt'), tok('part:pt')).msg), '연립 잠김');
+check(/V0.4/.test(Craft.match('simul', tok('part:x1'), tok('part:x2')).msg), '연립 잠김');
 check(Parts.mPrime.inf && Ops.simul.locked, 'm′ 무한, 연립 잠김 표시');
 for (const b of Craft.BOOK) {
   check(Cards[b.card] && ['basic', 'normal', 'magic'].includes(Cards[b.card].tier), `도감 카드 등급: ${b.card}`);
@@ -162,11 +163,28 @@ for (const r of Craft.BOOK) {
   check(last && last.startsWith(`card:${r.card}`), `조합법 안내 마지막 결과: ${r.card}`);
 }
 // 점 부품 하나만으로는 차이가 안 됨 (두 점 필요)
-check(!Craft.match('minus', tok('part:pt'), null).ok, '점 한 개로는 빼기 불가');
+check(!Craft.match('minus', tok('part:x1'), null).ok, '점 한 개로는 빼기 불가');
+// 분해 회수: 어떤 순서로 분해해도 x₁·x₂ 개수 차이가 1을 넘지 않아 연성이 막히지 않음
+for (let t = 0; t < 2000; t++) {
+  const bag = { x1: Math.floor(Math.random() * 4), x2: 0 };
+  bag.x2 = bag.x1 + Math.floor(Math.random() * 3) - 1; if (bag.x2 < 0) bag.x2 = 0;
+  const startGap = Math.abs(bag.x1 - bag.x2);
+  for (let k = 0; k < 6; k++) {
+    const r = Craft.book(['diff', 'segLen', 'divide', 'dist', 'line'][Math.floor(Math.random() * 5)]).refund;
+    const got = Craft.refundParts(r, bag);
+    Object.entries(got).forEach(([id, n]) => { bag[id] = (bag[id] || 0) + n; });
+    check(Math.abs(bag.x1 - bag.x2) <= Math.max(1, startGap), `분해 후 x₁·x₂ 균형 ${JSON.stringify(bag)}`);
+  }
+}
+check(JSON.stringify(Craft.refundParts({ pt: 2 }, { x1: 3, x2: 0 })) === JSON.stringify({ x1: 1, x2: 1 }), '2개 회수는 x₁ 1 + x₂ 1');
+check(JSON.stringify(Craft.refundParts({ pt: 1 }, { x1: 3, x2: 1 })) === JSON.stringify({ x2: 1 }), '1개 회수는 적은 쪽');
 // v0.2.1 저장의 점 A·B → 점 변환
 {
-  const g = Save.unpack({ ver: Save.VER, node: 0, loop: 1, cards: [], deckUids: [], bag: { ptA: 3, ptB: 5, pt1: 1 }, discovered: [], mastery: {}, granted: [], params: {}, stats: {} });
-  check(g.bag.pt === 8 && g.bag.ptA === undefined && g.bag.pt1 === 1, '옛 저장 점 A·B 통합');
+  const base = { ver: Save.VER, node: 0, loop: 1, cards: [], deckUids: [], discovered: [], mastery: {}, granted: [], params: {}, stats: {} };
+  const g = Save.unpack({ ...base, bag: { ptA: 3, ptB: 5, pt1: 1 } });
+  check(g.bag.x1 === 3 && g.bag.x2 === 5 && g.bag.ptA === undefined && g.bag.pt1 === 1, '옛 저장(v0.2.1) 점 A·B → x₁·x₂');
+  const g2 = Save.unpack({ ...base, bag: { pt: 7 } });
+  check(g2.bag.x1 === 4 && g2.bag.x2 === 3 && g2.bag.pt === undefined, '옛 저장(v0.2.1.1) 통합 점 → x₁·x₂');
 }
 
 // ── 5. 세이브 ─────────────────────────────────────────────
@@ -185,7 +203,7 @@ for (let t = 0; t < 300; t++) {
   const battleIdx = Progress.nodes.findIndex((n) => n.monster === 'slime');
   const batIdx = Progress.nodes.findIndex((n) => n.monster === 'bat');
   const G0 = {
-    node: 4, loop: 3, cards, deckUids: new Set([cards[0].uid, cards[2].uid]), bag: { pt: 3, slope: 1 },
+    node: 4, loop: 3, cards, deckUids: new Set([cards[0].uid, cards[2].uid]), bag: { x1: 2, x2: 1, slope: 1 },
     discovered: new Set(['diff', 'segLen']), mastery: { diff: 3, segLen: 1 }, granted: new Set([0, 2]),
     problems: { [battleIdx]: Monsters.slime.makeProblem(), [batIdx]: Monsters.bat.makeProblem() },
     stats: { asked: 5, correct: 4, steps: 3, crits: 1, wrongTools: 2, emergencies: 1 },
@@ -201,6 +219,7 @@ for (let t = 0; t < 300; t++) {
   for (const k of [battleIdx, batIdx]) check(JSON.stringify(G1.problems[k].pieces) === JSON.stringify(G0.problems[k].pieces), `세이브 문제 유지: 노드 ${k}`);
   check(Save.unpack({ ...JSON.parse(json), ver: Save.VER + 1 }) === null, '다른 버전 저장 거부');
   check(json.length < 20000, `세이브 크기 ${json.length}바이트`);
+  check(Save.unpack(JSON.parse(JSON.stringify(Save.pack({ ...G0, tutorial: 'skipped' })))).tutorial === 'skipped', '세이브 튜토리얼 기록');
 }
 
 if (failures) { console.error(`\n${failures}건 실패`); process.exit(1); }

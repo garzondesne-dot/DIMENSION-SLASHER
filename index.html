@@ -73,7 +73,12 @@
     </div>
 
     <div id="tab-forge">
-      <p class="howto">재료와 연산을 <b>눌러서</b> 모루에 올리고 <b>⚒ 연성</b>! 모루 칸을 누르면 뺍니다. 모루는 화면 위에 따라다녀요.</p>
+      <p class="howto">눌러서 모루에 올리고 <b>⚒ 연성</b>! 모루 칸을 누르면 빠져요.</p>
+      <h3 class="shelf-title">연산 <span class="muted small">무한</span></h3>
+      <div id="ops" class="parts shelf ops-shelf"></div>
+      <h3 class="shelf-title">부품 가방</h3>
+      <div id="parts" class="parts shelf"></div>
+
       <div class="anvil-dock">
         <div class="anvil">
           <div class="slot" data-k="a"></div>
@@ -84,14 +89,8 @@
         <div id="forge-msg" class="forge-msg"></div>
       </div>
 
-      <h3>연산 <span class="muted small">무한</span></h3>
-      <div id="ops" class="parts shelf"></div>
-
-      <h3>부품 가방</h3>
-      <div id="parts" class="parts shelf"></div>
-
-      <h3>카드 보관함 (<span id="store-count">0</span>장) <span class="muted small">재료로 쓰면 사라져요 · 🔒 잠긴 카드는 못 씀</span></h3>
-      <div id="store" class="card-grid"></div>
+      <h3>카드 보관함 (<span id="store-count">0</span>장) <span class="muted small">누르면 덱 밖·수치 낮은 카드부터 · ▾ 직접 고르기</span></h3>
+      <div id="store" class="stack-grid"></div>
 
       <h3>레시피 도감</h3>
       <div id="recipes" class="recipes"></div>

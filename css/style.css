@@ -121,7 +121,7 @@ h3 { margin: 22px 0 8px; font-size: 16px; color: var(--gold); }
   border: 2px solid #3a3456;
   text-align: center;
   user-select: none;
-  touch-action: none;
+  touch-action: manipulation; /* 스크롤 허용 (v0.2.1.1) */
   cursor: grab;
 }
 .part.empty { opacity: 0.3; cursor: default; }
@@ -399,7 +399,7 @@ h3 { margin: 22px 0 8px; font-size: 16px; color: var(--gold); }
 .card.mini .cname { font-size: 12px; }
 .card.mini .formula { font-size: 11px; }
 .card.mini .tier-badge { left: 2px; right: auto; }
-.card.mini.usable { touch-action: none; user-select: none; animation: glowMini 2s infinite; }
+.card.mini.usable { touch-action: manipulation; user-select: none; animation: glowMini 2s infinite; }
 @keyframes glowMini { 50% { box-shadow: 0 0 10px 1px var(--tc, #8f8aa8); } }
 .card.mini.locked-card { opacity: 0.6; cursor: default; }
 .card.mini .deck-flag { position: absolute; top: 2px; right: 2px; font-size: 10px; background: var(--gold); color: #1a1206; padding: 0 4px; }
@@ -460,8 +460,8 @@ h3 { margin: 22px 0 8px; font-size: 16px; color: var(--gold); }
 .card.mini.just-forged { outline: 3px solid var(--teal); animation: pop 0.45s ease-out, glowMini 2s infinite 0.45s; }
 .shelf { gap: 8px; }
 @media (max-width: 640px) {
-  .shelf { flex-wrap: nowrap; overflow-x: auto; padding: 10px 2px 6px; scroll-snap-type: x proximity; }
-  .shelf .part { flex: 0 0 auto; min-width: 72px; }
+  .shelf { gap: 10px 6px; padding-top: 8px; } /* 가로 스크롤 대신 여러 줄 (스크롤이 잘 안 된다는 의견) */
+  .shelf .part { min-width: 0; flex: 0 0 calc(25% - 5px); padding: 8px 2px 6px; }
   .slot { width: clamp(76px, 23vw, 110px); min-height: 92px; }
   .op-slot { width: clamp(56px, 15vw, 80px); }
 }
@@ -498,3 +498,59 @@ h3 { margin: 22px 0 8px; font-size: 16px; color: var(--gold); }
 .rate-ends { width: 100%; }
 #report-comment { width: 100%; margin-bottom: 12px; padding: 8px; font-family: var(--math); font-size: 15px; color: var(--text); background: #0f0d18; border: 2px solid #4a4466; resize: vertical; }
 .report-code { white-space: pre-wrap; word-break: break-all; padding: 10px; background: #0f0d18; border: 1px dashed var(--gold); font-family: var(--math); font-size: 13px; user-select: all; }
+
+/* ── v0.2.2: 연산·부품을 모루 위로, 연산은 기호 위주 ── */
+.camp-next { padding: 6px 10px; font-size: 13px; }
+.howto { margin: 4px 0 2px; }
+h3.shelf-title { margin: 10px 0 6px; font-size: 14px; }
+.ops-shelf { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+.ops-shelf .part.op { min-width: 0; padding: 6px 2px 4px; }
+.ops-shelf .psym { font-size: 20px; }
+.ops-shelf .pname { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.part.op.locked { opacity: 0.45; }
+.anvil-dock { margin-top: 10px; }
+@media (max-width: 640px) {
+  .ops-shelf { grid-template-columns: repeat(5, 1fr); }
+  .ops-shelf .psym { font-size: 22px; }
+}
+
+/* ── v0.2.2: 보관함 묶음 보기 ─────────── */
+.stack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.stack {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 18px 4px 6px; text-align: center; cursor: pointer; user-select: none; touch-action: manipulation;
+  background: linear-gradient(var(--tbg, #211d33), #121019); border: 2px solid var(--tc, #8f8aa8); border-bottom-width: 5px;
+}
+.stack.tier-basic { --tc: #8f8aa8; --tbg: #211d33; }
+.stack .tier-badge { position: absolute; top: 2px; left: 2px; }
+.stack .cname { font-size: 14px; font-weight: bold; }
+.stack .formula { font-size: 12px; color: #ffe7a8; background: rgba(0, 0, 0, 0.35); padding: 1px 4px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stack .s-count { font-family: 'Galmuri14', var(--pixel); font-size: 22px; color: var(--gold); line-height: 1.2; }
+.stack .s-meta { font-size: 11px; color: var(--muted); }
+.stack .s-open { position: absolute; top: 0; right: 0; width: 30px; height: 26px; padding: 0; font-size: 14px; color: var(--text); background: rgba(0, 0, 0, 0.35); border: none; cursor: pointer; }
+.stack.open { outline: 2px solid var(--cyan); }
+.stack.locked-card { opacity: 0.55; }
+.stack.just-forged { animation: pop 0.45s ease-out, glowMini 2s infinite 0.45s; outline: 3px solid var(--teal); }
+.stack-list { grid-column: 1 / -1; background: #100e19; border: 2px solid var(--cyan); padding: 6px 8px; }
+.sl-title { margin: 0 0 4px; font-size: 13px; color: var(--cyan); }
+.sl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 8px 6px; border-top: 1px solid var(--line); cursor: pointer; touch-action: manipulation; font-size: 15px; }
+.sl-row .atk { color: #ff8fa3; } .sl-row .def { color: #7df9ff; }
+.sl-row .affix { font-size: 11px; padding: 0 4px; }
+.sl-tag { font-size: 11px; padding: 0 4px; border: 1px solid var(--muted); color: var(--muted); }
+.sl-tag.deck { background: var(--gold); color: #1a1206; border-color: var(--gold); }
+.sl-row.locked-card { opacity: 0.5; cursor: default; }
+@media (max-width: 640px) {
+  .stack-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .stack .cname { font-size: 13px; }
+  .stack .formula { font-size: 11px; }
+}
+
+/* ── v0.2.2: 첫 연성 튜토리얼 ─────────── */
+.tut { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
+.tut-block { position: fixed; pointer-events: auto; }
+.tut.dim .tut-block[data-s="t"] { background: rgba(5, 4, 10, 0.75); }
+.tut-ring { position: fixed; pointer-events: none; border: 3px solid var(--gold); box-shadow: 0 0 0 200vmax rgba(5, 4, 10, 0.72), 0 0 18px rgba(232, 176, 74, 0.9); animation: tutPulse 1.2s ease-in-out infinite; }
+@keyframes tutPulse { 50% { border-color: #fff0c4; } }
+.tut-bubble { position: fixed; pointer-events: auto; background: var(--panel); border: 3px solid var(--gold); padding: 12px 14px; animation: pop 0.25s ease-out; }
+.tut-text { margin: 0 0 8px; white-space: pre-line; font-size: 16px; line-height: 1.6; }
+.tut-btns { display: flex; justify-content: flex-end; gap: 8px; }

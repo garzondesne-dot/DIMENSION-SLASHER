@@ -75,12 +75,14 @@ window.DS = window.DS || {};
     DS.Save.write(G);
     const fl = DS.Progress.floors[n.floor];
     $('#camp-sub').textContent = fl.title;
-    $('#camp-next').innerHTML = `<b>이 층의 범위:</b> ${esc(fl.unit)}<br><span class="muted">어떤 문제가 기다리는지는 조우해야 알 수 있다. 스캔 카드를 챙겨라.</span>`;
+    $('#camp-next').innerHTML = `<b>범위:</b> ${esc(fl.unit)} <span class="muted">· 문제는 조우해야 알 수 있다</span>`;
     DS.Forge.open({
       bag: G.bag, cards: G.cards, deckUids: G.deckUids, discovered: G.discovered, mastery: G.mastery, floor: n.floor,
       nextTitle: '다음 전투로 출발',
       onForge: (ok) => { if (ok) G.stats.forgeOK = (G.stats.forgeOK || 0) + 1; else G.stats.forgeFails = (G.stats.forgeFails || 0) + 1; },
       onGuide: () => { G.stats.guideViews = (G.stats.guideViews || 0) + 1; },
+      tutorial: i === 0 && !G.tutorial, // 캠페인 첫 캠프에서 한 번
+      onTutorial: (r) => { G.tutorial = r; DS.Save.write(G); },
       onDepart: () => goto(i + 1),
     });
     show('screen-camp');
@@ -132,7 +134,7 @@ window.DS = window.DS || {};
       <tr><th>긴급 연성</th><td>${s.emergencies}번</td></tr>
       <tr><th>되감기</th><td>${loops - 1}번 (LOOP ${String(loops).padStart(3, '0')})</td></tr>`
       + (s.forgeOK != null ? `<tr><th>연성</th><td>성공 ${s.forgeOK || 0}번 · 실패 ${s.forgeFails || 0}번</td></tr>` : '')
-      + (DS.BETA ? `<tr><th>조합법 열람</th><td>${s.guideViews || 0}번</td></tr>` : '');
+      + (DS.GUIDE ? `<tr><th>조합법 열람</th><td>${s.guideViews || 0}번</td></tr>` : '');
   }
 
   function showClear() {
@@ -220,7 +222,8 @@ window.DS = window.DS || {};
     const n = nodes[g.maxNode] || nodes[0];
     const reached = n.type === 'clear' ? '2층 클리어' : n.type === 'battle' ? DS.Monsters[n.monster].name : `${DS.Progress.floors[n.floor].title.split(' · ')[0]} 캠프`;
     const cleared = nodes.filter((x, i) => x.type === 'battle' && i < g.maxNode).length;
-    return { mode: '캠페인', reached, cleared, rewinds: g.loop - 1, ...statsRec(g.stats) };
+    const tutorial = g.tutorial === 'done' ? '완료' : g.tutorial === 'skipped' ? '건너뜀' : '-';
+    return { mode: '캠페인', reached, cleared, rewinds: g.loop - 1, tutorial, ...statsRec(g.stats) };
   }
   function statsRec(s) {
     return {
@@ -230,7 +233,7 @@ window.DS = window.DS || {};
   }
   function collectReport() {
     if (lastMode === 'trial' && T) {
-      return { mode: '최종보스 체험판', reached: T.cleared ? '체험판 클리어' : `${T.stats.steps}단계 해결`, cleared: T.cleared ? 1 : 0, rewinds: T.loop - 1, ...statsRec(T.stats) };
+      return { mode: '최종보스 체험판', reached: T.cleared ? '체험판 클리어' : `${T.stats.steps}단계 해결`, cleared: T.cleared ? 1 : 0, rewinds: T.loop - 1, tutorial: '-', ...statsRec(T.stats) };
     }
     if (lastMode === 'campaign') return campaignRecord(G);
     const saved = DS.Save.read(); // 새로 연 화면: 저장된 캠페인 기록

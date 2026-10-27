@@ -9,7 +9,7 @@ DS.Craft = (function () {
 
   // ordered: 재료 순서가 의미 있음 (나눗셈). out.axis: 결과 카드의 축
   const RULES = [
-    { op: 'minus', in: ['part:pt', 'part:pt'], out: { kind: 'card', id: 'diff', axis: 'x' } },
+    { op: 'minus', in: ['part:x1', 'part:x2'], out: { kind: 'card', id: 'diff', axis: 'x' } },
     { op: 'abs', in: ['card:diff@x'], out: { kind: 'card', id: 'segLen', axis: 'x' } },
     { op: 'abs', in: ['card:diff@y'], out: { kind: 'card', id: 'segLen', axis: 'y' } },
     { op: 'sq', in: ['card:diff@x'], out: { kind: 'card', id: 'diffSq', axis: 'x' } },
@@ -19,7 +19,7 @@ DS.Craft = (function () {
     { op: 'plus', in: ['card:diffSq@x', 'card:diffSq@y'], out: { kind: 'part', id: 'sumSq' } },
     { op: 'root', in: ['part:sumSq'], out: { kind: 'card', id: 'dist' } },
     { op: 'div', in: ['card:diff@y', 'card:diff@x'], ordered: true, out: { kind: 'part', id: 'slope' } },
-    { op: 'ratio', in: ['part:pt', 'part:pt'], out: { kind: 'card', id: 'divide' } },
+    { op: 'ratio', in: ['part:x1', 'part:x2'], out: { kind: 'card', id: 'divide' } },
     { op: 'eq', in: ['part:slope', 'part:mPrime'], out: { kind: 'card', id: 'para' } },
     { op: 'times', in: ['part:slope', 'part:mPrime'], out: { kind: 'card', id: 'perp' } },
     { op: 'minus', in: ['part:pt1', 'part:slope'], out: { kind: 'card', id: 'line' } },
@@ -27,9 +27,13 @@ DS.Craft = (function () {
 
   // 자주 하는 실수 → 개념 피드백. 키: 연산|재료(정렬), 순서가 중요한 경우 연산>재료(순서대로)
   const MISTAKES = {
-    'plus|part:pt,part:pt': '두 좌표를 더하면 거리가 아니에요. 더해서 2로 나누면 "중점"이 됩니다. 차이는 빼기!',
-    'ratio|card:diff@x': '내분점은 길이가 아니라 두 점의 좌표가 필요해요. [점] m : n [점]',
-    'ratio|card:segLen@x': '내분점은 길이가 아니라 두 점의 좌표가 필요해요. [점] m : n [점]',
+    'plus|part:x1,part:x2': '두 좌표를 더하면 거리가 아니에요. 더해서 2로 나누면 "중점"이 됩니다. 차이는 빼기!',
+    'minus|part:x1,part:x1': '같은 점끼리 빼면 0이에요. 서로 다른 두 점 x₁, x₂가 필요해요.',
+    'minus|part:x2,part:x2': '같은 점끼리 빼면 0이에요. 서로 다른 두 점 x₁, x₂가 필요해요.',
+    'ratio|part:x1,part:x1': '내분점은 서로 다른 두 점 사이에 생겨요. [x₁] m : n [x₂]',
+    'ratio|part:x2,part:x2': '내분점은 서로 다른 두 점 사이에 생겨요. [x₁] m : n [x₂]',
+    'ratio|card:diff@x': '내분점은 길이가 아니라 두 점의 좌표가 필요해요. [x₁] m : n [x₂]',
+    'ratio|card:segLen@x': '내분점은 길이가 아니라 두 점의 좌표가 필요해요. [x₁] m : n [x₂]',
     'div>card:diff@x,card:diff@y': '거꾸로예요! 기울기는 (y₂ − y₁) ÷ (x₂ − x₁). 세로 ÷ 가로!',
     'div|card:diff@x,card:diff@x': '둘 다 가로 차이예요. 한 장은 ⇄ 로 세로(y₂ − y₁)로 바꿔서 세로 ÷ 가로!',
     'div|card:diff@y,card:diff@y': '둘 다 세로 차이예요. 기울기는 세로 ÷ 가로!',
@@ -77,17 +81,17 @@ DS.Craft = (function () {
   // 레시피 도감 · 숙련(직접 3번 → 즉시 연성) · 긴급 연성(손패만) · 분해 회수
   // quick: 캠프 즉시 연성 비용 (부품 가방 + 보관함 카드)
   // emergency: 전투 중 손패로 대신할 수 있는 재료 조합 (없으면 긴급 연성 불가)
-  // refund: 분해 시 돌려받는 소재 (소재의 절반, 소수점 버림)
+  // refund: 분해 시 돌려받는 소재 (소재의 절반, 소수점 버림). pt: 점 x₁·x₂ 중에서 → refundParts 로 정함
   // guide: 조합법 창(베타)에 보여 줄 단계 [재료, 연산, 재료, 결과]. 테스트에서 실제 연성 규칙으로 검증한다.
   //   card:diff@y = ⇄로 세로로 뒤집은 차이 카드. n: 같은 연성을 몇 번
-  const D = ['part:pt', 'minus', 'part:pt', 'card:diff@x'];
+  const D = ['part:x1', 'minus', 'part:x2', 'card:diff@x'];
   const D2 = [...D, 2];
   const SLOPE = ['card:diff@y', 'div', 'card:diff@x', 'part:slope'];
   const BOOK = [
     {
-      card: 'diff', floor: 1, chain: '[점] − [점]', hint: '두 점의 좌표를 빼면…',
+      card: 'diff', floor: 1, chain: '[x₁] − [x₂]', hint: '두 점의 좌표를 빼면…',
       lore: '빼는 순서와 상관없이 x₂ − x₁. 카드를 ⇄ 로 뒤집으면 y₂ − y₁.',
-      quick: { parts: { pt: 2 } }, emergency: [], refund: { pt: 1 },
+      quick: { parts: { x1: 1, x2: 1 } }, emergency: [], refund: { pt: 1 },
       guide: [D],
     },
     {
@@ -103,10 +107,10 @@ DS.Craft = (function () {
       guide: [D, [null, 'sq', 'card:diff@x', 'card:diffSq@x']],
     },
     {
-      card: 'divide', floor: 1, chain: '[점] m : n [점]', hint: '두 점 사이를 일정한 비율로 나누는 연산',
+      card: 'divide', floor: 1, chain: '[x₁] m : n [x₂]', hint: '두 점 사이를 일정한 비율로 나누는 연산',
       lore: '내분점 = (m·x₂ + n·x₁)/(m + n). 비율은 엇갈려 곱한다!',
-      quick: { parts: { pt: 2 } }, emergency: [], refund: { pt: 1 },
-      guide: [['part:pt', 'ratio', 'part:pt', 'card:divide']],
+      quick: { parts: { x1: 1, x2: 1 } }, emergency: [], refund: { pt: 1 },
+      guide: [['part:x1', 'ratio', 'part:x2', 'card:divide']],
     },
     {
       card: 'dist', floor: 1, chain: '[차이]², [⇄차이]², 더하기 → √', hint: '가로·세로로 직각삼각형을 만들면 빗변이… (4단계)',
@@ -133,8 +137,24 @@ DS.Craft = (function () {
       guide: [D2, SLOPE, ['part:pt1', 'minus', 'part:slope', 'card:line']],
     },
   ];
+  // 분해 회수 계산: pt n개 → 2개 이상이면 x₁·x₂를 반씩, 남는 1개는 가방에 적은 쪽 (같으면 랜덤)
+  // 연성은 항상 x₁·x₂를 하나씩 쓰므로, 이렇게 돌려주면 둘의 개수 차이가 1을 넘지 않아 진행이 막히지 않는다
+  function refundParts(refund, bag, rnd = Math.random) {
+    const out = {};
+    const add = (id, n) => { if (n > 0) out[id] = (out[id] || 0) + n; };
+    for (const [id, n] of Object.entries(refund || {})) {
+      if (id !== 'pt') { add(id, n); continue; }
+      const half = Math.floor(n / 2);
+      add('x1', half); add('x2', half);
+      if (n % 2) {
+        const a = (bag.x1 || 0) + (out.x1 || 0), b = (bag.x2 || 0) + (out.x2 || 0);
+        add(a < b ? 'x1' : b < a ? 'x2' : (rnd() < 0.5 ? 'x1' : 'x2'), 1);
+      }
+    }
+    return out;
+  }
   const MASTERY = 3;
   const book = (id) => BOOK.find((b) => b.card === id);
 
-  return { RULES, MISTAKES, BOOK, MASTERY, key, match, book };
+  return { RULES, MISTAKES, BOOK, MASTERY, key, match, book, refundParts };
 })();

@@ -72,14 +72,14 @@ DS.Report = (function () {
       되감기: rec.rewinds, 푼문제: rec.asked, 정답: rec.correct,
       정답률: rec.asked ? Math.round((100 * rec.correct) / rec.asked) : 0,
       해결단계: rec.steps, 맞지않는도구: rec.wrongTools, 긴급연성: rec.emergencies,
-      연성성공: rec.forgeOK, 연성실패: rec.forgeFails, 조합법열람: rec.guideViews,
+      튜토리얼: rec.tutorial, 연성성공: rec.forgeOK, 연성실패: rec.forgeFails,
       플레이분: rec.minutes, 재미: answers.fun || '', 수학느낌: answers.math || '',
       한줄평: $('#report-comment').value.trim().slice(0, 300),
     };
   }
   // 사진·복사용 짧은 결과 코드
   const code = (p) => [`${p.학년}-${p.반}-${p.번호}`, p.모드, `도달 ${p.최고도달}`, `몬스터 ${p.해결몬스터}`,
-    `정답 ${p.정답}/${p.푼문제}`, `단계 ${p.해결단계}`, `연성 ${p.연성성공}/${p.연성실패}실패`, `조합법 ${p.조합법열람}`,
+    `정답 ${p.정답}/${p.푼문제}`, `단계 ${p.해결단계}`, `튜토리얼 ${p.튜토리얼}`, `연성 ${p.연성성공}/${p.연성실패}실패`,
     `되감기 ${p.되감기}`, `${p.플레이분}분`, `재미 ${p.재미 || '-'}`, `수학 ${p.수학느낌 || '-'}`, p.전송시각, p.버전].join(' | ')
     + (p.한줄평 ? `\n💬 ${p.한줄평}` : '');
 
