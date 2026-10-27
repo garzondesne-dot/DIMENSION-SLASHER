@@ -2,19 +2,22 @@
 //  대장간: 모루 [재료] [연산] [재료]. 재료 = 부품 가방 + 보관함 카드(잠긴 카드 제외). 연산과 m′은 무한.
 //          카드 결과는 매번 수치를 새로 굴린다. 같은 카드를 직접 3번 만들면 숙련 → 즉시 연성.
 //  덱 구성: 보관함 ↔ 덱 이동, 잠금, 분해(소재 절반 회수), 덱 규칙 검사
+//  조합법 창(베타 한정): 모든 레시피의 단계를 공개. 안내 문구는 Craft.BOOK.guide 에서 만들고 테스트로 검증
 window.DS = window.DS || {};
 
 DS.Forge = (function () {
   const $ = (s) => document.querySelector(s);
   const { pretty, esc } = DS.UI;
   const K = DS.CardKit;
-  let st = null; // { bag, cards, deckUids:Set, discovered:Set, mastery, floor, nextTitle, onDepart }
+  let st = null; // { bag, cards, deckUids:Set, discovered:Set, mastery, floor, nextTitle, onDepart, onForge?, onGuide? }
+  let lastForged = null; // 방금 연성한 카드 (보관함에서 반짝임)
   let slots = { a: null, op: null, b: null };
   let tab = 'forge';
   const TIER_RANK = { basic: 0, normal: 1, magic: 2, rare: 3, unique: 4, special: 5 };
 
   function open(state) {
     st = state;
+    lastForged = null;
     slots = { a: null, op: null, b: null };
     $('#forge-msg').innerHTML = '';
     $('#forge-msg').className = 'forge-msg';
@@ -40,8 +43,13 @@ DS.Forge = (function () {
   }
 
   // ── 표시 ─────────────────────────────────────────────────
-  function partHtml(id) {
+  // 점 부품은 모루 왼쪽 칸에서 A, 오른쪽 칸에서 B로 보인다
+  function partHtml(id, slotKey) {
     const p = DS.Parts[id];
+    if (p.pair && slotKey) {
+      const L = slotKey === 'a' ? 'A' : 'B';
+      return `<span class="psym math">${L}</span><span class="pname">점 ${L}</span>`;
+    }
     return `<span class="psym math">${pretty(p.sym)}</span><span class="pname">${esc(p.name)}</span>`;
   }
   function miniCard(c, extraCls = '') {
@@ -57,7 +65,7 @@ DS.Forge = (function () {
       el.innerHTML = '';
       el.classList.toggle('filled', !!t);
       if (!t) el.innerHTML = '<span class="slot-empty">재료</span>';
-      else if (t.kind === 'part') el.innerHTML = `<div class="part in-slot">${partHtml(t.id)}</div>`;
+      else if (t.kind === 'part') el.innerHTML = `<div class="part in-slot">${partHtml(t.id, k)}</div>`;
       else {
         el.appendChild(miniCard(t.card));
         if (DS.Cards[t.id].axis) el.insertAdjacentHTML('beforeend', '<button class="flip" title="가로 ↔ 세로">⇄ 축 바꾸기</button>');
@@ -119,7 +127,7 @@ DS.Forge = (function () {
     if (!list.length) box.innerHTML = '<p class="muted">카드가 없어요</p>';
     list.forEach((c) => {
       const inDeck = st.deckUids.has(c.uid);
-      const el = miniCard(c, (c.locked ? 'locked-card' : 'usable') + (inDeck ? ' in-deck' : ''));
+      const el = miniCard(c, (c.locked ? 'locked-card' : 'usable') + (inDeck ? ' in-deck' : '') + (c.uid === lastForged ? ' just-forged' : ''));
       if (inDeck) el.insertAdjacentHTML('beforeend', '<span class="deck-flag">덱</span>');
       if (!c.locked) el.addEventListener('pointerdown', (e) => startDrag(e, { kind: 'card', id: c.id, axis: c.axis, uid: c.uid }, el));
       box.appendChild(el);
@@ -315,12 +323,11 @@ DS.Forge = (function () {
         st.discovered.add(c.id);
         st.mastery[c.id] = (st.mastery[c.id] || 0) + 1;
         const n = st.mastery[c.id];
-        const masteryNote = n === DS.Craft.MASTERY ? '<br><b>숙련 완료!</b> 레시피 도감에서 즉시 연성할 수 있어요.'
+        const masteryNote = n === DS.Craft.MASTERY ? ' <b>숙련 완료!</b> 즉시 연성 가능'
           : n < DS.Craft.MASTERY ? ` (숙련 ${n}/${DS.Craft.MASTERY})` : '';
-        msg.innerHTML = '';
-        msg.appendChild(miniCard(c, 'forged'));
-        msg.insertAdjacentHTML('beforeend', `<p><b>${isNew ? '새 레시피 발견!' : '연성 성공!'}</b> ${r ? pretty(r.lore) : ''}${masteryNote}`
-          + `${st.deckUids.has(c.uid) ? '' : '<br><span class="muted">덱이 가득 차서 보관함에 들어갔어요. 덱 구성 탭에서 바꿔 넣으세요.</span>'}</p>`);
+        lastForged = c.uid;
+        msg.innerHTML = `<p><b>${isNew ? '✨ 새 레시피 발견!' : '✨ 연성 성공!'}</b> ${cardLabel(c)}${masteryNote}`
+          + `${st.deckUids.has(c.uid) ? '' : '<br><span class="ng-note">덱이 가득 차서 보관함에 들어갔어요. 덱 구성 탭에서 바꿔 넣으세요.</span>'}</p>`;
       } else {
         st.bag[res.out.id] = (st.bag[res.out.id] || 0) + 1;
         const p = DS.Parts[res.out.id];
@@ -334,6 +341,7 @@ DS.Forge = (function () {
       msg.className = 'forge-msg ng';
       msg.innerHTML = `<p><b>연성 실패</b> — 재료는 돌려받았어요.<br>${pretty(res.msg)}</p>`;
     }
+    if (st.onForge) st.onForge(res.ok);
     render();
   }
 
@@ -356,11 +364,10 @@ DS.Forge = (function () {
     }
     const c = addCard(r.card, 'x');
     DS.Sound.forge();
+    lastForged = c.uid;
     const msg = $('#forge-msg');
     msg.className = 'forge-msg ok';
-    msg.innerHTML = '';
-    msg.appendChild(miniCard(c, 'forged'));
-    msg.insertAdjacentHTML('beforeend', `<p><b>⚡ 즉시 연성:</b> ${esc(DS.Cards[r.card].name)}</p>`);
+    msg.innerHTML = `<p><b>⚡ 즉시 연성:</b> ${cardLabel(c)}</p>`;
     render();
   }
 
@@ -377,9 +384,45 @@ DS.Forge = (function () {
   }
 
   function toast(m, ms) { DS.UI.toast(m, ms); }
+  const cardLabel = (c) => `<span class="cl">${esc(DS.Cards[c.id].name)}${c.axis === 'y' ? '(세로)' : ''} <b class="atk">⚔${c.atk}</b> <b class="def">🛡${c.def}</b>${c.scan ? ' 🔍' : ''}</span>`;
+
+  // ── 조합법 창 (베타 한정) ─────────────────────────────────
+  const tokName = (k, slotKey) => {
+    const [kind, rest] = k.split(':');
+    const [id, axis] = rest.split('@');
+    if (kind === 'part') {
+      const p = DS.Parts[id];
+      if (p.pair) return slotKey === 'b' ? '점 B' : '점 A';
+      return p.name;
+    }
+    return DS.Cards[id].name + (DS.Cards[id].axis ? (axis === 'y' ? ' ⇄세로' : ' 가로') : '');
+  };
+  function guideStep([a, op, b, out, n], i) {
+    const o = DS.Ops[op];
+    const lhs = a ? `[${esc(tokName(a, 'a'))}] ${pretty(o.sym)} [${esc(tokName(b, 'b'))}]`
+      : `[${esc(tokName(b, 'a'))}] 에 ${pretty(o.sym)} (${esc(o.name)})`;
+    const flip = [a, b].includes('card:diff@y') ? // 가로 차이 카드를 세로로 뒤집어 쓰는 단계만 안내
+      ' <span class="muted small">← 모루 위에서 ⇄ 로 세로로 뒤집기</span>' : '';
+    return `<li><span class="g-no">${'①②③④⑤⑥⑦'[i]}</span> ${lhs} → <b>${esc(tokName(out))}</b>${n ? ` <span class="g-times">×${n}장</span>` : ''}${flip}</li>`;
+  }
+  function openGuide() {
+    if (!DS.BETA || !st) return;
+    if (st.onGuide) st.onGuide();
+    $('#guide-list').innerHTML = DS.Craft.BOOK.map((r) => {
+      const c = DS.Cards[r.card];
+      const later = r.floor > st.floor ? ` <span class="g-later">${r.floor}층부터</span>` : '';
+      return `<div class="g-item tier-${c.tier}"><p class="g-name"><span class="tier-badge sm">${DS.Tiers[c.tier].name}</span> <b>${esc(c.name)}</b> <span class="math muted">${pretty(c.formula)}</span>${later}</p>`
+        + `<ol class="g-steps">${r.guide.map(guideStep).join('')}</ol></div>`;
+    }).join('');
+    $('#guide').classList.remove('hidden');
+  }
 
   function bind() {
     $('#forge-btn').addEventListener('click', forge);
+    $('#btn-guide').classList.toggle('hidden', !DS.BETA);
+    $('#btn-guide').addEventListener('click', openGuide);
+    $('#guide-close').addEventListener('click', () => $('#guide').classList.add('hidden'));
+    $('#guide').addEventListener('click', (e) => { if (e.target.id === 'guide') $('#guide').classList.add('hidden'); });
     $('#depart').addEventListener('click', depart);
     document.querySelectorAll('.camp-tab').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
   }

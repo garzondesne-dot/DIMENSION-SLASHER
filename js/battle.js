@@ -137,7 +137,7 @@ DS.Battle = (function () {
   // ── 화면 갱신 ─────────────────────────────────────────────
   function statusChips() {
     const e = B.enemy, chips = [];
-    if (B.mult < 1) chips.push('<span class="chip armor">방어막: 받는 피해 ½</span>');
+    if (B.mult < 1) chips.push('<span class="chip armor">철갑: 받는 피해 ½</span>');
     if (B.mult > 1) chips.push(`<span class="chip weak">약점 노출: 받는 피해 ×${B.mult}</span>`);
     if (B.atkDown) chips.push(`<span class="chip down">공격 −${B.atkDown}</span>`);
     if (e.vuln) chips.push(`<span class="chip weak">취약 +${e.vuln.pct}%</span>`);
@@ -161,7 +161,7 @@ DS.Battle = (function () {
     if (!step) goal = '<b class="ok">모든 단계 해결! 공격으로 마무리하라</b>';
     else if (!needsMet(step)) goal = `다음 단계를 보려면 문제를 더 스캔하라 (<b>${B.revealed}/${step.needs}</b> 조각)`;
     else goal = `다음 단계: <b>${pretty(step.goal)}</b>`;
-    if (step && atGate()) goal = `<span class="gate-alert">🔒 문턱!</span> ${goal}`;
+    if (step && atGate()) goal = `<span class="gate-alert">🛡 결계 보호막!</span> ${goal}`;
     $('#prob-goal').innerHTML = goal;
 
     $('#e-name').textContent = def.name;
@@ -233,7 +233,7 @@ DS.Battle = (function () {
       scene.wrongTool();
       DS.Sound.wrong();
       toast(def.tool ? `이 도구로는 지금 단계를 풀 수 없어요. 목표: ${step.goal}`
-        : '문턱! 공격은 튕겨 나간다. 이 단계를 푸는 풀이 카드가 필요하다.', 2600);
+        : '결계 보호막! 공격은 튕겨 나간다. 이 단계를 푸는 풀이 카드가 필요하다.', 2600);
       if (hooks.onWrongTool && def.tool) hooks.onWrongTool();
       if (card.atk > 0) scene.gateLock();
       await guardAndScan(card);
@@ -312,7 +312,7 @@ DS.Battle = (function () {
     if (card) applyOnHit(card, d);
     if (locked && floor > 0) {
       scene.gateLock();
-      toast('문턱에 닿았다! 이제 풀이 카드로 이 단계를 풀어야 한다.', 2400);
+      toast('결계 보호막에 닿았다! 이제 풀이 카드로 이 단계를 풀어야 깨진다.', 2400);
     }
     render();
     await wait(330);

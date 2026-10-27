@@ -18,12 +18,14 @@ window.DS = window.DS || {};
     toastTimer = setTimeout(() => t.classList.remove('show'), ms);
   };
 
-  const newStats = () => ({ asked: 0, correct: 0, steps: 0, crits: 0, wrongTools: 0, emergencies: 0 });
+  const newStats = () => ({ asked: 0, correct: 0, steps: 0, crits: 0, wrongTools: 0, emergencies: 0, forgeOK: 0, forgeFails: 0, guideViews: 0, playSec: 0 });
+  let lastMode = null; // 결과 보내기에 쓸 최근 모드: 'campaign' | 'trial'
   let G;
   function newGame() {
     const cards = Array.from({ length: DS.Progress.startDiff }, () => K.roll('diff'));
     G = {
       node: 0,
+      maxNode: 0, // 최고 도달 위치 (결과 보내기)
       loop: 1,
       cards, // 보관함 (덱 포함 모든 카드)
       deckUids: new Set(cards.map((c) => c.uid)),
@@ -59,6 +61,8 @@ window.DS = window.DS || {};
 
   function goto(i) {
     G.node = i;
+    G.maxNode = Math.max(G.maxNode || 0, i);
+    lastMode = 'campaign';
     const n = nodes[i];
     if (n.type === 'camp') enterCamp(n, i);
     else if (n.type === 'battle') startBattle(n, i);
@@ -75,6 +79,8 @@ window.DS = window.DS || {};
     DS.Forge.open({
       bag: G.bag, cards: G.cards, deckUids: G.deckUids, discovered: G.discovered, mastery: G.mastery, floor: n.floor,
       nextTitle: '다음 전투로 출발',
+      onForge: (ok) => { if (ok) G.stats.forgeOK = (G.stats.forgeOK || 0) + 1; else G.stats.forgeFails = (G.stats.forgeFails || 0) + 1; },
+      onGuide: () => { G.stats.guideViews = (G.stats.guideViews || 0) + 1; },
       onDepart: () => goto(i + 1),
     });
     show('screen-camp');
@@ -124,7 +130,9 @@ window.DS = window.DS || {};
       <tr><th>맞지 않는 도구 시도</th><td>${s.wrongTools}번</td></tr>
       <tr><th>크리티컬</th><td>${s.crits}번</td></tr>
       <tr><th>긴급 연성</th><td>${s.emergencies}번</td></tr>
-      <tr><th>되감기</th><td>${loops - 1}번 (LOOP ${String(loops).padStart(3, '0')})</td></tr>`;
+      <tr><th>되감기</th><td>${loops - 1}번 (LOOP ${String(loops).padStart(3, '0')})</td></tr>`
+      + (s.forgeOK != null ? `<tr><th>연성</th><td>성공 ${s.forgeOK || 0}번 · 실패 ${s.forgeFails || 0}번</td></tr>` : '')
+      + (DS.BETA ? `<tr><th>조합법 열람</th><td>${s.guideViews || 0}번</td></tr>` : '');
   }
 
   function showClear() {
@@ -139,14 +147,17 @@ window.DS = window.DS || {};
       T = {
         loop: 1, problem: DS.Monsters.finalBoss.makeProblem(), stats: newStats(),
         deck: Array.from({ length: DS.Progress.trialDiff }, () => K.roll('diff')),
+        cleared: false,
       };
     }
+    lastMode = 'trial';
     show('screen-battle');
     DS.Battle.start({
       def: DS.Monsters.finalBoss, problem: T.problem, deck: T.deck, loop: T.loop,
       title: '최종보스 체험판', trial: true,
       ...statHooks(T.stats),
       onWin: () => {
+        T.cleared = true;
         $('#trial-stats').innerHTML = statRows(T.stats, T.loop);
         show('screen-trial-clear');
       },
@@ -159,6 +170,7 @@ window.DS = window.DS || {};
     DS.Forge.bind();
     DS.Battle.bind();
     $('#btn-start').addEventListener('click', async () => {
+      if (!DS.Report.ensureStudent()) return;
       DS.Sound.unlock();
       if (DS.Save.has()) {
         const idx = await DS.Cinematic.choice('새로 시작', '저장된 캠페인 진행을 지우고 처음부터 시작할까요?', ['지우고 새로 시작', '취소']);
@@ -169,13 +181,17 @@ window.DS = window.DS || {};
       show('screen-story');
     });
     $('#btn-continue').addEventListener('click', () => {
+      if (!DS.Report.ensureStudent()) return;
       DS.Sound.unlock();
       const g = DS.Save.read();
       if (!g) { refreshTitle(); return; }
       G = g;
       goto(G.node);
     });
-    $('#btn-trial').addEventListener('click', () => { DS.Sound.unlock(); startTrial(false); });
+    $('#btn-trial').addEventListener('click', () => { if (!DS.Report.ensureStudent()) return; DS.Sound.unlock(); startTrial(false); });
+    DS.Report.bind();
+    DS.Report.setCollector(collectReport);
+    document.querySelectorAll('#btn-report-title, #btn-report-camp, .report-btn').forEach((b) => b.addEventListener('click', () => DS.Report.open()));
     $('#btn-story').addEventListener('click', () => goto(0));
     $('#btn-restart').addEventListener('click', () => { newGame(); show('screen-title'); });
     $('#btn-clear-trial').addEventListener('click', () => startTrial(false));
@@ -198,6 +214,40 @@ window.DS = window.DS || {};
       if ((e.key === 'e' || e.key === 'E') && $('#screen-battle').classList.contains('active')) $('#end-turn').click();
     });
   }
+
+  // ── 결과 보내기용 기록 ─────────────────────────────────────
+  function campaignRecord(g) {
+    const n = nodes[g.maxNode] || nodes[0];
+    const reached = n.type === 'clear' ? '2층 클리어' : n.type === 'battle' ? DS.Monsters[n.monster].name : `${DS.Progress.floors[n.floor].title.split(' · ')[0]} 캠프`;
+    const cleared = nodes.filter((x, i) => x.type === 'battle' && i < g.maxNode).length;
+    return { mode: '캠페인', reached, cleared, rewinds: g.loop - 1, ...statsRec(g.stats) };
+  }
+  function statsRec(s) {
+    return {
+      asked: s.asked || 0, correct: s.correct || 0, steps: s.steps || 0, wrongTools: s.wrongTools || 0, emergencies: s.emergencies || 0,
+      forgeOK: s.forgeOK || 0, forgeFails: s.forgeFails || 0, guideViews: s.guideViews || 0, minutes: Math.round((s.playSec || 0) / 60),
+    };
+  }
+  function collectReport() {
+    if (lastMode === 'trial' && T) {
+      return { mode: '최종보스 체험판', reached: T.cleared ? '체험판 클리어' : `${T.stats.steps}단계 해결`, cleared: T.cleared ? 1 : 0, rewinds: T.loop - 1, ...statsRec(T.stats) };
+    }
+    if (lastMode === 'campaign') return campaignRecord(G);
+    const saved = DS.Save.read(); // 새로 연 화면: 저장된 캠페인 기록
+    return saved ? campaignRecord(saved) : null;
+  }
+  // 플레이 시간: 타이틀이 아닌 화면에 있는 동안 5초마다 적립 (화면이 숨겨져 있으면 세지 않음)
+  setInterval(() => {
+    if (document.hidden || $('#screen-title').classList.contains('active')) return;
+    const s = lastMode === 'trial' ? T && T.stats : lastMode === 'campaign' ? G.stats : null;
+    if (s) s.playSec = (s.playSec || 0) + 5;
+  }, 5000);
+
+  // ── 타이틀 화면 ───────────────────────────────────────────
+  $('#ver-label').textContent = `· ${DS.VERSION}`;
+  $('#beta-badge').classList.toggle('hidden', !DS.BETA);
+  $('#beta-note').classList.toggle('hidden', !DS.BETA);
+  DS.TitleBg($('#title-bg'), () => $('#screen-title').classList.contains('active'));
 
   newGame();
   bind();

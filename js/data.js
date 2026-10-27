@@ -16,8 +16,7 @@ DS.Tiers = {
 // ── 부품 (부품 가방) ──────────────────────────────────────
 // mid: 바로 다음 연성으로 넘어가는 중간 단계. inf: 무한 제공(소재로 세지 않음)
 DS.Parts = {
-  ptA: { name: '점 A', sym: 'A' },
-  ptB: { name: '점 B', sym: 'B' },
+  pt: { name: '점', sym: 'A·B', pair: true }, // 두 점 재료: 모루 왼쪽 칸은 A, 오른쪽 칸은 B로 표시 (v0.2.1.1에서 점 A·B 통합)
   pt1: { name: '한 점', sym: '(x₁, y₁)' },
   sumSq: { name: '제곱의 합', sym: '(x₂−x₁)²+(y₂−y₁)²', mid: true },
   slope: { name: '기울기', sym: 'm = (y₂−y₁)/(x₂−x₁)', mid: true },
@@ -62,7 +61,7 @@ DS.Cards = {
 // ── 디아블로식 옵션 ──────────────────────────────────────
 // 범위: [매직 최소, 매직 최대, 레어 최소, 레어 최대]. 어떤 옵션도 체력 문턱은 넘지 못한다.
 DS.Affixes = {
-  pierce: { name: '방어막 관통', range: [1, 1, 1, 1], text: () => '방어막 관통' },
+  pierce: { name: '철갑 관통', range: [1, 1, 1, 1], text: () => '철갑 관통' },
   critRate: { name: '치명타 확률', range: [5, 10, 8, 15], text: (v) => `치명타 확률 +${v}%` },
   critDmg: { name: '치명타 피해', range: [20, 40, 30, 60], text: (v) => `치명타 피해 +${v}%` },
   vuln: { name: '취약 부여', range: [20, 30, 25, 40], text: (v) => `취약 ${v}%` },
@@ -76,6 +75,12 @@ DS.Affixes = {
 };
 DS.SCAN_CHANCE = 0.35; // 일반 카드에 스캔이 붙을 확률
 
+// ── 버전 · 베타 테스트 설정 ─────────────────────────────────
+DS.VERSION = 'v0.2.1.1';
+DS.BETA = true; // 베타 테스트 한정 기능(조합법 창, BETA 표시). 정식판에서는 false
+// 결과 보내기: 선생님 구글 시트에 연결한 Apps Script 웹 앱 주소. 비어 있으면 결과 코드만 보여 준다.
+DS.REPORT_URL = '';
+
 // ── 덱 규칙 ──────────────────────────────────────────────
 DS.DeckRules = { min: 6, max: 12, minScan: 4, minDiff: 1, maxMagic: 4 };
 
@@ -88,12 +93,12 @@ DS.Progress = {
     2: { title: '2층 · 직선의 성벽', unit: '직선의 위치 관계 (교과서 18~22쪽)' },
   },
   nodes: [
-    { type: 'camp', floor: 1, parts: { ptA: 6, ptB: 6 } },
-    { type: 'battle', floor: 1, monster: 'slime', reward: { ptA: 4, ptB: 4 } },
+    { type: 'camp', floor: 1, parts: { pt: 12 } },
+    { type: 'battle', floor: 1, monster: 'slime', reward: { pt: 8 } },
     { type: 'camp', floor: 1 },
-    { type: 'battle', floor: 1, monster: 'golem', reward: { ptA: 6, ptB: 6, pt1: 2 } },
+    { type: 'battle', floor: 1, monster: 'golem', reward: { pt: 12, pt1: 2 } },
     { type: 'camp', floor: 2 },
-    { type: 'battle', floor: 2, monster: 'bat', reward: { ptA: 4, ptB: 4, pt1: 1 } },
+    { type: 'battle', floor: 2, monster: 'bat', reward: { pt: 8, pt1: 1 } },
     { type: 'camp', floor: 2 },
     { type: 'battle', floor: 2, monster: 'beast' },
     { type: 'clear' },

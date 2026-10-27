@@ -27,8 +27,8 @@ const tok = (k) => {
 };
 
 // ── 1. 연성 나무 ──────────────────────────────────────────
-// 시작 부품(점 A, 점 B, 한 점, 무한 m′)에서 규칙을 반복 적용해 도달 가능한 결과
-const have = new Set(['part:ptA', 'part:ptB', 'part:pt1', 'part:mPrime']);
+// 시작 부품(점, 한 점, 무한 m′)에서 규칙을 반복 적용해 도달 가능한 결과
+const have = new Set(['part:pt', 'part:pt1', 'part:mPrime']);
 for (let round = 0; round < 8; round++) {
   for (const r of Craft.RULES) {
     if (r.in.every((k) => have.has(k))) {
@@ -47,17 +47,17 @@ for (const r of Craft.RULES) {
   check(res.ok && res.out.id === r.out.id, `규칙 불일치: ${r.op} ${r.in}`);
 }
 // 빼는 순서는 상관없음, 나눗셈 순서는 중요
-check(Craft.match('minus', tok('part:ptB'), tok('part:ptA')).out.id === 'diff', '빼는 순서 무관');
+check(Craft.match('minus', tok('part:pt'), tok('part:pt')).out.id === 'diff', '[점] − [점] → 차이');
 check(Craft.match('div', tok('card:diff@y'), tok('card:diff@x')).out.id === 'slope', '세로 ÷ 가로 = 기울기');
 check(/거꾸로/.test(Craft.match('div', tok('card:diff@x'), tok('card:diff@y')).msg), '나눗셈 역순 피드백');
 check(/세로/.test(Craft.match('div', tok('card:diff@x'), tok('card:diff@x')).msg), '같은 축 나눗셈 피드백');
 check(/축|세로/.test(Craft.match('plus', tok('card:diffSq@x'), tok('card:diffSq@x')).msg), '같은 축 제곱 합 피드백');
-check(/중점/.test(Craft.match('plus', tok('part:ptA'), tok('part:ptB')).msg), '중점 피드백');
+check(/중점/.test(Craft.match('plus', tok('part:pt'), tok('part:pt')).msg), '중점 피드백');
 check(/두 점의 좌표/.test(Craft.match('ratio', tok('card:segLen@x')).msg), '내분점 = 두 점 피드백');
 check(Craft.match('sq', tok('card:segLen@y')).out.id === 'diffSq' && Craft.match('sq', tok('card:segLen@y')).out.axis === 'y', '선분² = 차이² (축 유지)');
 check(!Craft.match('times', tok('part:pt1'), tok('part:mPrime')).ok, 'm′ 은 기울기에만 반응');
 check(/m′/.test(Craft.match('plus', tok('part:slope'), tok('part:mPrime')).msg), 'm′ 피드백');
-check(/V0.4/.test(Craft.match('simul', tok('part:ptA'), tok('part:ptB')).msg), '연립 잠김');
+check(/V0.4/.test(Craft.match('simul', tok('part:pt'), tok('part:pt')).msg), '연립 잠김');
 check(Parts.mPrime.inf && Ops.simul.locked, 'm′ 무한, 연립 잠김 표시');
 for (const b of Craft.BOOK) {
   check(Cards[b.card] && ['basic', 'normal', 'magic'].includes(Cards[b.card].tier), `도감 카드 등급: ${b.card}`);
@@ -149,6 +149,26 @@ for (const n of Progress.nodes.filter((x) => x.type === 'battle')) {
   for (const s of Monsters[n.monster].makeProblem().steps) check(['normal', 'magic'].includes(Cards[s.tool].tier), `캠페인 도구 등급: ${s.tool}`);
 }
 
+// 조합법 창(베타)의 안내가 실제 연성 규칙과 맞는지: 각 단계를 그대로 모루에 올려 결과를 확인
+for (const r of Craft.BOOK) {
+  check(Array.isArray(r.guide) && r.guide.length, `조합법 안내 있음: ${r.card}`);
+  let last = null;
+  for (const [a, op, b, out] of r.guide) {
+    const res = Craft.match(op, a && tok(a), b && tok(b));
+    const got = res.ok ? `${res.out.kind}:${res.out.id}${res.out.axis ? '@' + res.out.axis : ''}` : res.msg;
+    check(got === out, `조합법 안내 ${r.card}: ${a} ${op} ${b} → ${got} (기대 ${out})`);
+    last = out;
+  }
+  check(last && last.startsWith(`card:${r.card}`), `조합법 안내 마지막 결과: ${r.card}`);
+}
+// 점 부품 하나만으로는 차이가 안 됨 (두 점 필요)
+check(!Craft.match('minus', tok('part:pt'), null).ok, '점 한 개로는 빼기 불가');
+// v0.2.1 저장의 점 A·B → 점 변환
+{
+  const g = Save.unpack({ ver: Save.VER, node: 0, loop: 1, cards: [], deckUids: [], bag: { ptA: 3, ptB: 5, pt1: 1 }, discovered: [], mastery: {}, granted: [], params: {}, stats: {} });
+  check(g.bag.pt === 8 && g.bag.ptA === undefined && g.bag.pt1 === 1, '옛 저장 점 A·B 통합');
+}
+
 // ── 5. 세이브 ─────────────────────────────────────────────
 // 무작위 문제는 params 로 같은 문제를 다시 만들 수 있어야 함 (조각·정답이 같음)
 for (let t = 0; t < 300; t++) {
@@ -165,7 +185,7 @@ for (let t = 0; t < 300; t++) {
   const battleIdx = Progress.nodes.findIndex((n) => n.monster === 'slime');
   const batIdx = Progress.nodes.findIndex((n) => n.monster === 'bat');
   const G0 = {
-    node: 4, loop: 3, cards, deckUids: new Set([cards[0].uid, cards[2].uid]), bag: { ptA: 2, ptB: 1, slope: 1 },
+    node: 4, loop: 3, cards, deckUids: new Set([cards[0].uid, cards[2].uid]), bag: { pt: 3, slope: 1 },
     discovered: new Set(['diff', 'segLen']), mastery: { diff: 3, segLen: 1 }, granted: new Set([0, 2]),
     problems: { [battleIdx]: Monsters.slime.makeProblem(), [batIdx]: Monsters.bat.makeProblem() },
     stats: { asked: 5, correct: 4, steps: 3, crits: 1, wrongTools: 2, emergencies: 1 },
@@ -184,4 +204,4 @@ for (let t = 0; t < 300; t++) {
 }
 
 if (failures) { console.error(`\n${failures}건 실패`); process.exit(1); }
-console.log(`OK: 연성 규칙 ${Craft.RULES.length}개 · 카드 수치·옵션 · 덱 규칙 · 몬스터 ${Object.keys(Monsters).length}종 · 보스 정답 검산 · 세이브 왕복 통과`);
+console.log(`OK: 연성 규칙 ${Craft.RULES.length}개 · 카드 수치·옵션 · 덱 규칙 · 몬스터 ${Object.keys(Monsters).length}종 · 보스 정답 검산 · 조합법 안내 · 세이브 왕복 통과`);

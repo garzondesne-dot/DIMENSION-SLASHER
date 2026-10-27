@@ -9,7 +9,7 @@ DS.Craft = (function () {
 
   // ordered: 재료 순서가 의미 있음 (나눗셈). out.axis: 결과 카드의 축
   const RULES = [
-    { op: 'minus', in: ['part:ptA', 'part:ptB'], out: { kind: 'card', id: 'diff', axis: 'x' } },
+    { op: 'minus', in: ['part:pt', 'part:pt'], out: { kind: 'card', id: 'diff', axis: 'x' } },
     { op: 'abs', in: ['card:diff@x'], out: { kind: 'card', id: 'segLen', axis: 'x' } },
     { op: 'abs', in: ['card:diff@y'], out: { kind: 'card', id: 'segLen', axis: 'y' } },
     { op: 'sq', in: ['card:diff@x'], out: { kind: 'card', id: 'diffSq', axis: 'x' } },
@@ -19,7 +19,7 @@ DS.Craft = (function () {
     { op: 'plus', in: ['card:diffSq@x', 'card:diffSq@y'], out: { kind: 'part', id: 'sumSq' } },
     { op: 'root', in: ['part:sumSq'], out: { kind: 'card', id: 'dist' } },
     { op: 'div', in: ['card:diff@y', 'card:diff@x'], ordered: true, out: { kind: 'part', id: 'slope' } },
-    { op: 'ratio', in: ['part:ptA', 'part:ptB'], out: { kind: 'card', id: 'divide' } },
+    { op: 'ratio', in: ['part:pt', 'part:pt'], out: { kind: 'card', id: 'divide' } },
     { op: 'eq', in: ['part:slope', 'part:mPrime'], out: { kind: 'card', id: 'para' } },
     { op: 'times', in: ['part:slope', 'part:mPrime'], out: { kind: 'card', id: 'perp' } },
     { op: 'minus', in: ['part:pt1', 'part:slope'], out: { kind: 'card', id: 'line' } },
@@ -27,9 +27,9 @@ DS.Craft = (function () {
 
   // 자주 하는 실수 → 개념 피드백. 키: 연산|재료(정렬), 순서가 중요한 경우 연산>재료(순서대로)
   const MISTAKES = {
-    'plus|part:ptA,part:ptB': '두 좌표를 더하면 거리가 아니에요. 더해서 2로 나누면 "중점"이 됩니다. 차이는 빼기!',
-    'ratio|card:diff@x': '내분점은 길이가 아니라 두 점의 좌표가 필요해요. [점 A] m : n [점 B]',
-    'ratio|card:segLen@x': '내분점은 길이가 아니라 두 점의 좌표가 필요해요. [점 A] m : n [점 B]',
+    'plus|part:pt,part:pt': '두 좌표를 더하면 거리가 아니에요. 더해서 2로 나누면 "중점"이 됩니다. 차이는 빼기!',
+    'ratio|card:diff@x': '내분점은 길이가 아니라 두 점의 좌표가 필요해요. [점] m : n [점]',
+    'ratio|card:segLen@x': '내분점은 길이가 아니라 두 점의 좌표가 필요해요. [점] m : n [점]',
     'div>card:diff@x,card:diff@y': '거꾸로예요! 기울기는 (y₂ − y₁) ÷ (x₂ − x₁). 세로 ÷ 가로!',
     'div|card:diff@x,card:diff@x': '둘 다 가로 차이예요. 한 장은 ⇄ 로 세로(y₂ − y₁)로 바꿔서 세로 ÷ 가로!',
     'div|card:diff@y,card:diff@y': '둘 다 세로 차이예요. 기울기는 세로 ÷ 가로!',
@@ -78,46 +78,59 @@ DS.Craft = (function () {
   // quick: 캠프 즉시 연성 비용 (부품 가방 + 보관함 카드)
   // emergency: 전투 중 손패로 대신할 수 있는 재료 조합 (없으면 긴급 연성 불가)
   // refund: 분해 시 돌려받는 소재 (소재의 절반, 소수점 버림)
+  // guide: 조합법 창(베타)에 보여 줄 단계 [재료, 연산, 재료, 결과]. 테스트에서 실제 연성 규칙으로 검증한다.
+  //   card:diff@y = ⇄로 세로로 뒤집은 차이 카드. n: 같은 연성을 몇 번
+  const D = ['part:pt', 'minus', 'part:pt', 'card:diff@x'];
+  const D2 = [...D, 2];
+  const SLOPE = ['card:diff@y', 'div', 'card:diff@x', 'part:slope'];
   const BOOK = [
     {
-      card: 'diff', floor: 1, chain: '[점 A] − [점 B]', hint: '두 점의 좌표를 빼면…',
+      card: 'diff', floor: 1, chain: '[점] − [점]', hint: '두 점의 좌표를 빼면…',
       lore: '빼는 순서와 상관없이 x₂ − x₁. 카드를 ⇄ 로 뒤집으면 y₂ − y₁.',
-      quick: { parts: { ptA: 1, ptB: 1 } }, emergency: [], refund: { ptA: 1 },
+      quick: { parts: { pt: 2 } }, emergency: [], refund: { pt: 1 },
+      guide: [D],
     },
     {
       card: 'segLen', floor: 1, chain: '|·| [차이]', hint: '음수가 나와도 거리는 양수여야…',
       lore: '수직선 위 두 점 사이 거리 = |x₂ − x₁|',
-      quick: { cards: { diff: 1 } }, emergency: [{ diff: 1 }], refund: { ptA: 1 },
+      quick: { cards: { diff: 1 } }, emergency: [{ diff: 1 }], refund: { pt: 1 },
+      guide: [D, [null, 'abs', 'card:diff@x', 'card:segLen@x']],
     },
     {
       card: 'diffSq', floor: 1, chain: '[차이] ² (또는 [선분의 길이] ²)', hint: '차이를 제곱하면…',
       lore: '제곱하면 부호가 사라진다: |x₂ − x₁|² = (x₂ − x₁)²',
-      quick: { cards: { diff: 1 } }, emergency: [{ diff: 1 }, { segLen: 1 }], refund: { ptA: 1 },
+      quick: { cards: { diff: 1 } }, emergency: [{ diff: 1 }, { segLen: 1 }], refund: { pt: 1 },
+      guide: [D, [null, 'sq', 'card:diff@x', 'card:diffSq@x']],
     },
     {
-      card: 'divide', floor: 1, chain: '[점 A] m : n [점 B]', hint: '두 점 사이를 일정한 비율로 나누는 연산',
+      card: 'divide', floor: 1, chain: '[점] m : n [점]', hint: '두 점 사이를 일정한 비율로 나누는 연산',
       lore: '내분점 = (m·x₂ + n·x₁)/(m + n). 비율은 엇갈려 곱한다!',
-      quick: { parts: { ptA: 1, ptB: 1 } }, emergency: [], refund: { ptB: 1 },
+      quick: { parts: { pt: 2 } }, emergency: [], refund: { pt: 1 },
+      guide: [['part:pt', 'ratio', 'part:pt', 'card:divide']],
     },
     {
       card: 'dist', floor: 1, chain: '[차이]², [⇄차이]², 더하기 → √', hint: '가로·세로로 직각삼각형을 만들면 빗변이… (4단계)',
       lore: '(x₂−x₁)² + (y₂−y₁)² 에 루트. 교과서 14쪽의 유도 그대로!',
-      quick: { cards: { diff: 2 } }, emergency: [{ diff: 2 }, { diffSq: 2 }], refund: { ptA: 1, ptB: 1 },
+      quick: { cards: { diff: 2 } }, emergency: [{ diff: 2 }, { diffSq: 2 }], refund: { pt: 2 },
+      guide: [D2, [null, 'sq', 'card:diff@x', 'card:diffSq@x'], [null, 'sq', 'card:diff@y', 'card:diffSq@y'], ['card:diffSq@x', 'plus', 'card:diffSq@y', 'part:sumSq'], [null, 'root', 'part:sumSq', 'card:dist']],
     },
     {
       card: 'para', floor: 2, chain: '[세로 차이] ÷ [가로 차이] → [기울기] = [m′]', hint: '두 기울기가 같으면?',
       lore: '두 직선이 평행 ⇔ m = m′ (y절편은 다름).',
-      quick: { cards: { diff: 2 } }, emergency: [{ diff: 2 }], refund: { ptA: 1, ptB: 1 },
+      quick: { cards: { diff: 2 } }, emergency: [{ diff: 2 }], refund: { pt: 2 },
+      guide: [D2, SLOPE, ['part:slope', 'eq', 'part:mPrime', 'card:para']],
     },
     {
       card: 'perp', floor: 2, chain: '[세로 차이] ÷ [가로 차이] → [기울기] × [m′]', hint: '두 기울기의 곱이 −1 이 되는 관계',
       lore: '두 직선이 수직 ⇔ mm′ = −1.',
-      quick: { cards: { diff: 2 } }, emergency: [{ diff: 2 }], refund: { ptA: 1, ptB: 1 },
+      quick: { cards: { diff: 2 } }, emergency: [{ diff: 2 }], refund: { pt: 2 },
+      guide: [D2, SLOPE, ['part:slope', 'times', 'part:mPrime', 'card:perp']],
     },
     {
       card: 'line', floor: 2, chain: '[한 점] − [기울기]', hint: '한 점을 지나고 기울기가 m인 직선',
       lore: 'y − y₁ = m(x − x₁). 점을 빼서 원점으로 옮긴 뒤 기울기를 곱한다.',
-      quick: { parts: { pt1: 1 }, cards: { diff: 2 } }, emergency: [], refund: { ptA: 1, ptB: 1 },
+      quick: { parts: { pt1: 1 }, cards: { diff: 2 } }, emergency: [], refund: { pt: 2 },
+      guide: [D2, SLOPE, ['part:pt1', 'minus', 'part:slope', 'card:line']],
     },
   ];
   const MASTERY = 3;

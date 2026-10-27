@@ -650,7 +650,7 @@ DS.Scene = function (canvas) {
     gateLock() {
       const c = enemyCenter();
       ring(c.x, c.y, '#ffd166', 30, 20, 0.5);
-      text(c.x, c.y - 120, '문턱! 풀이가 필요하다', '#ffd166', 16);
+      text(c.x, c.y - 120, '결계 보호막! 풀이가 필요하다', '#ffd166', 16);
       fx.shieldFlash = 0.15;
     },
     blocked(amount) {

@@ -15,7 +15,7 @@ DS.Save = (function () {
     Object.entries(G.problems).forEach(([i, p]) => { params[i] = p.params || {}; });
     return {
       ver: VER, savedAt: Date.now(),
-      node: G.node, loop: G.loop,
+      node: G.node, maxNode: G.maxNode, loop: G.loop,
       cards: G.cards, deckUids: [...G.deckUids], bag: G.bag,
       discovered: [...G.discovered], mastery: G.mastery, granted: [...G.granted],
       params, stats: G.stats,
@@ -24,13 +24,18 @@ DS.Save = (function () {
   // 저장 객체 → 게임 상태 (문제는 node 번호의 몬스터로 다시 만든다)
   function unpack(d) {
     if (!d || d.ver !== VER) return null;
+    // v0.2.1 저장: 점 A·B를 하나의 "점" 부품으로 합친다 (v0.2.1.1)
+    if (d.bag && (d.bag.ptA != null || d.bag.ptB != null)) {
+      d.bag.pt = (d.bag.pt || 0) + (d.bag.ptA || 0) + (d.bag.ptB || 0);
+      delete d.bag.ptA; delete d.bag.ptB;
+    }
     const problems = {};
     Object.entries(d.params || {}).forEach(([i, p]) => {
       const n = DS.Progress.nodes[i];
       if (n && n.monster) problems[i] = DS.Monsters[n.monster].makeProblem(Object.keys(p).length ? p : undefined);
     });
     return {
-      node: d.node, loop: d.loop,
+      node: d.node, maxNode: d.maxNode != null ? d.maxNode : d.node, loop: d.loop,
       cards: d.cards, deckUids: new Set(d.deckUids), bag: d.bag,
       discovered: new Set(d.discovered), mastery: d.mastery, granted: new Set(d.granted),
       problems, stats: d.stats,

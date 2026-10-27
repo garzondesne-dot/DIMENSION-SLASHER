@@ -15,17 +15,29 @@
 
   <!-- 타이틀 -->
   <section id="screen-title" class="screen active">
+    <canvas id="title-bg" aria-hidden="true"></canvas>
     <div class="title-wrap">
-      <p class="eyebrow">공통수학2 · Ⅰ. 도형의 방정식 · v0.2.1 · 세이브</p>
-      <h1 class="logo">DIMENSION<br><span>SLASHER</span></h1>
+      <p class="eyebrow">공통수학2 · Ⅰ. 도형의 방정식 <span id="ver-label"></span></p>
+      <h1 class="logo">DIMENSION<br><span>SLASHER</span><b id="beta-badge" class="beta-badge hidden">BETA</b></h1>
       <p class="tagline">몬스터는 곧 문제다. 공식을 벼려 풀이로 베어라.</p>
+      <div class="student-form">
+        <p class="sf-title">플레이어 등록</p>
+        <div class="sf-row">
+          <label><select id="sf-grade"><option value="">-</option><option>1</option><option>2</option><option>3</option></select> 학년</label>
+          <label><input id="sf-class" type="number" inputmode="numeric" min="1" max="20" placeholder="-"> 반</label>
+          <label><input id="sf-num" type="number" inputmode="numeric" min="1" max="50" placeholder="-"> 번</label>
+        </div>
+      </div>
       <div class="title-btns">
         <button id="btn-continue" class="btn primary big hidden">▶ 이어하기</button>
         <button id="btn-start" class="btn primary big">캠페인 (1·2층)</button>
         <button id="btn-trial" class="btn boss big">최종보스 체험판</button>
       </div>
+      <div class="title-btns sub"><button id="btn-report-title" class="btn small">📨 결과 보내기</button></div>
       <p id="save-note" class="hint"></p>
+      <p id="beta-note" class="beta-note hidden">베타 테스트 버전입니다. 헷갈리는 점은 결과 보내기의 한줄평에 남겨 주세요.</p>
       <p class="hint">PC: 문제 창에서 숫자 1~4로 선택, E로 턴 종료 · 캠페인은 캠프마다 자동 저장</p>
+      <p class="credit">제작: 김찬우 선생님</p>
     </div>
   </section>
 
@@ -34,8 +46,8 @@
     <div class="story">
       <p class="loop-big">LOOP 001</p>
       <p>탑의 꼭대기에서 저주에 걸린 순간, 모든 것이 <b>0</b>으로 돌아갔다.</p>
-      <p>이 탑의 괴물은 하나하나가 <b class="c-gold">풀리지 않은 문제</b>다. 칼로 베어도 문턱에서 막힌다.</p>
-      <p>문제는 처음엔 흐릿하다. <b class="c-cyan">스캔</b>으로 문제를 밝히고, 알맞은 <b class="c-cyan">공식</b>으로 풀이를 한 단계씩 해내야 문턱이 깨진다.</p>
+      <p>이 탑의 괴물은 하나하나가 <b class="c-gold">풀리지 않은 문제</b>다. 칼로 베어도 <b class="c-cyan">결계 보호막</b>에서 막힌다.</p>
+      <p>문제는 처음엔 흐릿하다. <b class="c-cyan">스캔</b>으로 문제를 밝히고, 알맞은 <b class="c-cyan">공식</b>으로 풀이를 한 단계씩 해내야 결계 보호막이 깨진다.</p>
       <p>캠프의 대장간에서 기억의 부품을 조합해 공식을 벼려라.</p>
       <p class="muted">쓰러져도 괜찮다. 시간은 되감긴다.</p>
       <button id="btn-story" class="btn primary">캠프로 ▶</button>
@@ -48,7 +60,11 @@
       <div>
         <h2>캠프 · <span id="camp-sub"></span></h2>
       </div>
-      <button class="btn small mute">소리 켬</button>
+      <div class="bar-btns">
+        <button id="btn-guide" class="btn small hidden">📖 조합법</button>
+        <button id="btn-report-camp" class="btn small">📨 결과 보내기</button>
+        <button class="btn small mute">소리 켬</button>
+      </div>
     </header>
     <p id="camp-next" class="camp-next"></p>
     <div class="camp-tabs">
@@ -57,22 +73,22 @@
     </div>
 
     <div id="tab-forge">
-      <div class="panel">
-        <p class="howto">재료(부품·카드)와 연산을 <b>모루</b>에 끌어다 놓거나 눌러서 올리고 <b>연성</b>! 공식은 한 단계씩 만들어요. 슬롯을 누르면 뺍니다. 카드는 연성할 때마다 수치가 새로 정해져요.</p>
+      <p class="howto">재료와 연산을 <b>눌러서</b> 모루에 올리고 <b>⚒ 연성</b>! 모루 칸을 누르면 뺍니다. 모루는 화면 위에 따라다녀요.</p>
+      <div class="anvil-dock">
         <div class="anvil">
           <div class="slot" data-k="a"></div>
           <div class="slot op-slot" data-k="op"></div>
           <div class="slot" data-k="b"></div>
+          <button id="forge-btn" class="btn primary forge-btn" disabled>⚒<br>연성</button>
         </div>
-        <div class="forge-row"><button id="forge-btn" class="btn primary" disabled>⚒ 연성</button></div>
         <div id="forge-msg" class="forge-msg"></div>
       </div>
 
       <h3>연산 <span class="muted small">무한</span></h3>
-      <div id="ops" class="parts"></div>
+      <div id="ops" class="parts shelf"></div>
 
       <h3>부품 가방</h3>
-      <div id="parts" class="parts"></div>
+      <div id="parts" class="parts shelf"></div>
 
       <h3>카드 보관함 (<span id="store-count">0</span>장) <span class="muted small">재료로 쓰면 사라져요 · 🔒 잠긴 카드는 못 씀</span></h3>
       <div id="store" class="card-grid"></div>
@@ -152,6 +168,7 @@
       <h2>2층 돌파!</h2>
       <p>방패 거수의 심장이 수직의 일격에 갈라졌다.</p>
       <table id="clear-stats" class="stats"></table>
+      <p><button class="btn primary report-btn">📨 결과 보내기</button></p>
       <p class="muted">3층 · 점과 직선 사이의 거리 &amp; 원 — 개발 중</p>
       <div class="title-btns">
         <button id="btn-clear-trial" class="btn boss">최종보스 체험판 도전 ▶</button>
@@ -166,6 +183,7 @@
       <h2>차원 군주 섬멸!</h2>
       <p>서술형 풀이 여섯 단계가 하나의 참격이 되었다.</p>
       <table id="trial-stats" class="stats"></table>
+      <p><button class="btn primary report-btn">📨 결과 보내기</button></p>
       <div class="title-btns">
         <button id="btn-trial-again" class="btn boss">다시 도전</button>
         <button id="btn-trial-title" class="btn">타이틀로</button>
@@ -187,6 +205,38 @@
   </div>
 </div>
 
+<!-- 조합법 (베타 테스트 한정) -->
+<div id="guide" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-head"><b>📖 조합법 <span class="muted small">베타 테스트용</span></b><button id="guide-close" class="btn small">닫기 ✕</button></div>
+    <p class="muted small">어떤 몬스터에 어떤 카드를 쓸지는 문제를 보고 직접 고르세요. 숙련은 직접 연성해야 올라가요.</p>
+    <div id="guide-list"></div>
+  </div>
+</div>
+
+<!-- 결과 보내기 -->
+<div id="report" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-head"><b>📨 결과 보내기</b><button id="report-close" class="btn small">닫기 ✕</button></div>
+    <p id="report-who" class="report-who"></p>
+    <div id="report-form">
+      <p class="rq">이 게임, 재미있었나요?</p>
+      <div class="rate" data-k="fun"></div>
+      <p class="rq">수학을 했다는 느낌이 들었나요?</p>
+      <div class="rate" data-k="math"></div>
+      <p class="rq">한줄평 · 헷갈렸던 점 · 하고 싶은 말</p>
+      <textarea id="report-comment" maxlength="300" rows="3" placeholder="자유롭게 적어 주세요"></textarea>
+      <button id="report-send" class="btn primary big">보내기</button>
+    </div>
+    <div id="report-done" class="hidden">
+      <p id="report-status"></p>
+      <p class="muted small">전송이 안 되면 아래 결과 코드를 사진 찍거나 복사해서 선생님께 보여 주세요.</p>
+      <pre id="report-code" class="report-code"></pre>
+      <button id="report-copy" class="btn small">코드 복사</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="js/mathgen.js"></script>
@@ -201,8 +251,10 @@
 <script src="js/cinematic.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/save.js"></script>
+<script src="js/report.js"></script>
 <script src="js/forge.js"></script>
 <script src="js/battle.js"></script>
+<script src="js/titlebg.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
