@@ -1,5 +1,6 @@
 // 결과 보내기 (베타 테스트): 학년·반·번호 + 플레이 기록 + 설문(재미, 수학 느낌, 한줄평)을 선생님 구글 시트로 전송
-//  - 전송: DS.REPORT_URL (Apps Script 웹 앱)에 POST. 서버가 없으면·실패하면 결과 코드만 보여 준다
+//  - 전송 ①: 게임이 Apps Script 웹 앱 안에서 열렸으면 google.script.run.saveResult (성공·실패를 정확히 앎)
+//  - 전송 ②: 파일로 열었으면 DS.REPORT_URL (Apps Script 웹 앱)에 POST. 주소가 없거나 실패하면 결과 코드만 보여 준다
 //  - 결과 코드는 항상 보여 준다 (방화벽 등으로 전송이 안 될 때 사진·복사로 제출)
 //  - 이름은 받지 않는다
 window.DS = window.DS || {};
@@ -90,7 +91,12 @@ DS.Report = (function () {
     $('#report-send').disabled = true;
     const p = payload(rec);
     let status;
-    if (!DS.REPORT_URL) status = '전송 주소가 설정되지 않은 버전이에요. 아래 결과 코드를 선생님께 보여 주세요.';
+    const gs = window.google && google.script && google.script.run;
+    if (gs) {
+      // Apps Script 배포판: 서버 함수가 시트에 쓰고 응답까지 돌려준다
+      const ok = await new Promise((res) => gs.withSuccessHandler(() => res(true)).withFailureHandler(() => res(false)).saveResult(p));
+      status = ok ? '✅ 선생님께 전송했어요! 고마워요.' : '⚠ 전송하지 못했어요. 아래 결과 코드를 선생님께 보여 주세요.';
+    } else if (!DS.REPORT_URL) status = '전송 주소가 설정되지 않은 버전이에요. 아래 결과 코드를 선생님께 보여 주세요.';
     else {
       try {
         // Apps Script는 다른 출처의 응답을 읽을 수 없게 하므로(no-cors) 네트워크 오류만 실패로 판단
