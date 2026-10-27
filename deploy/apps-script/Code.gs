@@ -3,12 +3,15 @@
 //      게임 파일은 구글 드라이브에서 찾는다: 이름에 GAME_FILE 이 들어간 HTML 중 가장 최근에 올린 것
 //      → 새 버전은 드라이브에 같은 이름으로 올리기만 하면 된다 (재배포 필요 없음, 폰에서도 가능)
 //      드라이브에 없으면 이 프로젝트의 game.html (붙여 넣기 방식)을 쓴다
-//  - saveResult: 게임 안의 [결과 보내기]가 호출 → '결과' 시트에 한 줄 추가
+//  - saveResult: 게임 안의 [결과 보내기]가 호출 → 결과 시트의 '결과' 탭에 한 줄 추가
+//      결과 시트: RESULT_SHEET 에 넣은 시트, 비어 있으면 이 스크립트가 붙어 있는 시트(확장 프로그램으로 만든 경우)
 //  - doPost: 파일로 연 게임(DS.REPORT_URL)에서 보내는 결과도 같은 시트에 받는다
 // 자세한 설정 순서: docs/deploy-apps-script.md
 
 // 드라이브의 게임 파일 이름 (일부만 맞아도 됨). 파일 링크나 ID를 넣으면 그 파일만 쓴다.
 const GAME_FILE = 'dimension-slasher-game';
+// 결과를 받을 구글 시트의 링크나 ID. 시트의 [확장 프로그램 → Apps Script]로 만든 스크립트면 비워 둬도 된다.
+const RESULT_SHEET = '';
 const SHEET_NAME = '결과';
 
 function doGet() {
@@ -62,10 +65,18 @@ function doPost(e) {
   return ContentService.createTextOutput('ok');
 }
 
+function resultBook_() {
+  const id = String(RESULT_SHEET).match(/[-\w]{25,}/);
+  if (id) return SpreadsheetApp.openById(id[0]);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error('결과 시트가 연결되지 않았어요. Code.gs 맨 위 RESULT_SHEET 에 시트 링크를 넣어 주세요.');
+  return ss;
+}
+
 // 1행 = 열 이름(처음 받은 기록의 키 순서). 새 항목이 생기면 오른쪽에 열을 추가한다.
 // 반 전체가 동시에 보내도 줄이 섞이지 않게 잠금을 건다.
 function appendResult_(d) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = resultBook_();
   const sh = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
