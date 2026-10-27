@@ -6,6 +6,7 @@ window.DS = window.DS || {};
 (function () {
   const $ = (s) => document.querySelector(s);
   const { esc, pretty } = DS.UI;
+  const K = DS.CardKit;
 
   let toastTimer = null;
   DS.UI.toast = function (msg, ms = 2200) {
@@ -16,25 +17,29 @@ window.DS = window.DS || {};
     toastTimer = setTimeout(() => t.classList.remove('show'), ms);
   };
 
+  const newStats = () => ({ asked: 0, correct: 0, steps: 0, crits: 0, wrongTools: 0, emergencies: 0 });
   let G;
   function newGame() {
+    const cards = Array.from({ length: DS.Progress.startDiff }, () => K.roll('diff'));
     G = {
       node: 0,
       loop: 1,
-      deck: DS.Progress.startDeck.slice(),
+      cards, // 보관함 (덱 포함 모든 카드)
+      deckUids: new Set(cards.map((c) => c.uid)),
       bag: {},
-      discovered: new Set(),
+      discovered: new Set(['diff']),
       mastery: {},
       granted: new Set(), // 부품을 이미 받은 노드
-      problems: {}, // 노드별 문제 (되감기 후에도 같은 문제)
-      stats: { asked: 0, correct: 0, steps: 0, crits: 0, wrongTools: 0 },
+      problems: {}, // 노드별 문제 (되감기·후퇴 후에도 같은 문제)
+      stats: newStats(),
     };
   }
-  const statHooks = () => ({
-    onAnswer: (ok) => { G.stats.asked++; if (ok) G.stats.correct++; },
-    onStep: () => { G.stats.steps++; },
-    onCrit: () => { G.stats.crits++; },
-    onWrongTool: () => { G.stats.wrongTools++; },
+  const statHooks = (s) => ({
+    onAnswer: (ok) => { s.asked++; if (ok) s.correct++; },
+    onStep: () => { s.steps++; },
+    onCrit: () => { s.crits++; },
+    onWrongTool: () => { s.wrongTools++; },
+    onEmergency: () => { s.emergencies++; },
   });
 
   function show(id) {
@@ -54,17 +59,15 @@ window.DS = window.DS || {};
     else showClear();
   }
 
+  // 캠프에는 다음 상대·문제를 보여 주지 않는다 (조우해야 알 수 있음). 층의 단원 범위만 표시.
   function enterCamp(n, i) {
     if (!G.granted.has(i)) { addParts(n.parts); G.granted.add(i); }
-    const next = nodes[i + 1];
-    const mon = DS.Monsters[next.monster];
-    $('#camp-sub').textContent = `${DS.Progress.floors[n.floor].title} — ${DS.Progress.floors[n.floor].unit}`;
-    $('#camp-next').innerHTML = `<b>다음 상대: ${esc(mon.name)}</b> (풀이 ${mon.gates.length}단계)<br><span class="muted">${esc(mon.campHint)}</span>`;
-    const problem = G.problems[i + 1] || (G.problems[i + 1] = mon.makeProblem());
+    const fl = DS.Progress.floors[n.floor];
+    $('#camp-sub').textContent = fl.title;
+    $('#camp-next').innerHTML = `<b>이 층의 범위:</b> ${esc(fl.unit)}<br><span class="muted">어떤 문제가 기다리는지는 조우해야 알 수 있다. 스캔 카드를 챙겨라.</span>`;
     DS.Forge.open({
-      bag: G.bag, deck: G.deck, discovered: G.discovered, mastery: G.mastery, floor: n.floor,
-      nextTitle: `${mon.name}에게 출발`,
-      needTools: problem.steps.map((s) => s.tool).filter(Boolean),
+      bag: G.bag, cards: G.cards, deckUids: G.deckUids, discovered: G.discovered, mastery: G.mastery, floor: n.floor,
+      nextTitle: '다음 전투로 출발',
       onDepart: () => goto(i + 1),
     });
     show('screen-camp');
@@ -75,11 +78,12 @@ window.DS = window.DS || {};
     const problem = G.problems[i] || (G.problems[i] = def.makeProblem());
     show('screen-battle');
     DS.Battle.start({
-      def, problem, deck: G.deck.slice(), loop: G.loop,
+      def, problem, deck: G.cards.filter((c) => G.deckUids.has(c.uid)), loop: G.loop, mastery: G.mastery,
       title: DS.Progress.floors[n.floor].title,
-      ...statHooks(),
+      ...statHooks(G.stats),
       onWin: () => afterWin(n, i),
-      onLose: () => { G.loop++; startBattle(n, i); },
+      onLose: (how) => { G.loop++; if (how === 'camp') goto(i - 1); else startBattle(n, i); },
+      onRetreat: () => goto(i - 1),
     });
   }
 
@@ -110,34 +114,35 @@ window.DS = window.DS || {};
       <tr><th>해결한 풀이 단계</th><td>${s.steps}단계</td></tr>
       <tr><th>맞지 않는 도구 시도</th><td>${s.wrongTools}번</td></tr>
       <tr><th>크리티컬</th><td>${s.crits}번</td></tr>
+      <tr><th>긴급 연성</th><td>${s.emergencies}번</td></tr>
       <tr><th>되감기</th><td>${loops - 1}번 (LOOP ${String(loops).padStart(3, '0')})</td></tr>`;
   }
 
   function showClear() {
-    $('#clear-stats').innerHTML = statRows(G.stats, G.loop) + `<tr><th>최종 덱</th><td>${G.deck.length}장</td></tr>`;
+    $('#clear-stats').innerHTML = statRows(G.stats, G.loop) + `<tr><th>보유 카드</th><td>${G.cards.length}장 (덱 ${G.deckUids.size}장)</td></tr>`;
     show('screen-clear');
   }
 
   // ── 최종보스 체험판 ───────────────────────────────────────
   let T = null;
-  function startTrial(keepProblem) {
-    if (!keepProblem) T = { loop: 1, problem: DS.Monsters.finalBoss.makeProblem(), stats: { asked: 0, correct: 0, steps: 0, crits: 0, wrongTools: 0 } };
+  function startTrial(keep) {
+    if (!keep) {
+      T = {
+        loop: 1, problem: DS.Monsters.finalBoss.makeProblem(), stats: newStats(),
+        deck: Array.from({ length: DS.Progress.trialDiff }, () => K.roll('diff')),
+      };
+    }
     show('screen-battle');
-    const hooksFor = (s) => ({
-      onAnswer: (ok) => { s.asked++; if (ok) s.correct++; },
-      onStep: () => { s.steps++; },
-      onCrit: () => { s.crits++; },
-      onWrongTool: () => { s.wrongTools++; },
-    });
     DS.Battle.start({
-      def: DS.Monsters.finalBoss, problem: T.problem, deck: DS.Progress.trialDeck.slice(), loop: T.loop,
+      def: DS.Monsters.finalBoss, problem: T.problem, deck: T.deck, loop: T.loop,
       title: '최종보스 체험판', trial: true,
-      ...hooksFor(T.stats),
+      ...statHooks(T.stats),
       onWin: () => {
         $('#trial-stats').innerHTML = statRows(T.stats, T.loop);
         show('screen-trial-clear');
       },
-      onLose: () => { T.loop++; startTrial(true); },
+      onLose: (how) => { T.loop++; if (how === 'camp') show('screen-title'); else startTrial(true); },
+      onRetreat: () => show('screen-title'),
     });
   }
 
@@ -157,7 +162,7 @@ window.DS = window.DS || {};
     }));
     // 키보드: 문제 창에서 1~4로 선택, Enter로 계속 / 전투 중 E로 턴 종료
     window.addEventListener('keydown', (e) => {
-      if (document.querySelector('.cine.qte')) return; // QTE 는 자체 처리
+      if (document.querySelector('.cine.qte, .cine.choice')) return; // 자체 처리
       const quizOpen = !$('#quiz').classList.contains('hidden');
       if (quizOpen) {
         const k = Number(e.key);

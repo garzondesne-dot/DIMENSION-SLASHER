@@ -16,7 +16,7 @@
   <!-- 타이틀 -->
   <section id="screen-title" class="screen active">
     <div class="title-wrap">
-      <p class="eyebrow">공통수학2 · Ⅰ. 도형의 방정식 · v0.2</p>
+      <p class="eyebrow">공통수학2 · Ⅰ. 도형의 방정식 · v0.2.1</p>
       <h1 class="logo">DIMENSION<br><span>SLASHER</span></h1>
       <p class="tagline">몬스터는 곧 문제다. 공식을 벼려 풀이로 베어라.</p>
       <div class="title-btns">
@@ -33,46 +33,65 @@
       <p class="loop-big">LOOP 001</p>
       <p>탑의 꼭대기에서 저주에 걸린 순간, 모든 것이 <b>0</b>으로 돌아갔다.</p>
       <p>이 탑의 괴물은 하나하나가 <b class="c-gold">풀리지 않은 문제</b>다. 칼로 베어도 문턱에서 막힌다.</p>
-      <p>알맞은 <b class="c-cyan">공식</b>을 꺼내 풀이를 한 단계씩 해내야 문턱이 깨진다.</p>
+      <p>문제는 처음엔 흐릿하다. <b class="c-cyan">스캔</b>으로 문제를 밝히고, 알맞은 <b class="c-cyan">공식</b>으로 풀이를 한 단계씩 해내야 문턱이 깨진다.</p>
       <p>캠프의 대장간에서 기억의 부품을 조합해 공식을 벼려라.</p>
       <p class="muted">쓰러져도 괜찮다. 시간은 되감긴다.</p>
       <button id="btn-story" class="btn primary">캠프로 ▶</button>
     </div>
   </section>
 
-  <!-- 캠프 · 대장간 -->
+  <!-- 캠프: 대장간 · 덱 구성 -->
   <section id="screen-camp" class="screen">
     <header class="bar">
       <div>
-        <h2>캠프 · 공식의 공방</h2>
-        <p id="camp-sub" class="muted"></p>
+        <h2>캠프 · <span id="camp-sub"></span></h2>
       </div>
       <button class="btn small mute">소리 켬</button>
     </header>
     <p id="camp-next" class="camp-next"></p>
-
-    <div class="panel">
-      <p class="howto">재료(부품·카드)와 연산을 <b>모루</b>에 끌어다 놓거나 눌러서 올리고 <b>연성</b>! 공식은 한 단계씩 만들어요. 슬롯을 누르면 뺍니다.</p>
-      <div class="anvil">
-        <div class="slot" data-k="a"></div>
-        <div class="slot op-slot" data-k="op"></div>
-        <div class="slot" data-k="b"></div>
-      </div>
-      <div class="forge-row"><button id="forge-btn" class="btn primary" disabled>⚒ 연성</button></div>
-      <div id="forge-msg" class="forge-msg"></div>
+    <div class="camp-tabs">
+      <button class="camp-tab on" data-tab="forge">⚒ 대장간</button>
+      <button class="camp-tab" data-tab="deck">🃏 덱 구성 <span id="deck-rule-mini"></span></button>
     </div>
 
-    <h3>연산 <span class="muted small">무한</span></h3>
-    <div id="ops" class="parts"></div>
+    <div id="tab-forge">
+      <div class="panel">
+        <p class="howto">재료(부품·카드)와 연산을 <b>모루</b>에 끌어다 놓거나 눌러서 올리고 <b>연성</b>! 공식은 한 단계씩 만들어요. 슬롯을 누르면 뺍니다. 카드는 연성할 때마다 수치가 새로 정해져요.</p>
+        <div class="anvil">
+          <div class="slot" data-k="a"></div>
+          <div class="slot op-slot" data-k="op"></div>
+          <div class="slot" data-k="b"></div>
+        </div>
+        <div class="forge-row"><button id="forge-btn" class="btn primary" disabled>⚒ 연성</button></div>
+        <div id="forge-msg" class="forge-msg"></div>
+      </div>
 
-    <h3>부품 가방</h3>
-    <div id="parts" class="parts"></div>
+      <h3>연산 <span class="muted small">무한</span></h3>
+      <div id="ops" class="parts"></div>
 
-    <h3>내 덱 (<span id="deck-count">0</span>장) <span class="muted small">일반·매직 카드는 재료로 쓸 수 있어요 (쓰면 사라짐)</span></h3>
-    <div id="deck" class="deck"></div>
+      <h3>부품 가방</h3>
+      <div id="parts" class="parts"></div>
 
-    <h3>레시피 도감</h3>
-    <div id="recipes" class="recipes"></div>
+      <h3>카드 보관함 (<span id="store-count">0</span>장) <span class="muted small">재료로 쓰면 사라져요 · 🔒 잠긴 카드는 못 씀</span></h3>
+      <div id="store" class="card-grid"></div>
+
+      <h3>레시피 도감</h3>
+      <div id="recipes" class="recipes"></div>
+    </div>
+
+    <div id="tab-deck" class="hidden">
+      <div id="deck-rules" class="deck-rules"></div>
+      <div class="deck-cols">
+        <div>
+          <h3>덱 (<span id="deck-count">0</span>장)</h3>
+          <div id="deck-list" class="deck-list"></div>
+        </div>
+        <div>
+          <h3>보관함 (<span id="store2-count">0</span>장)</h3>
+          <div id="store-list" class="deck-list"></div>
+        </div>
+      </div>
+    </div>
 
     <div class="depart-row"><button id="depart" class="btn primary big">출발 ▶</button></div>
   </section>
@@ -103,8 +122,14 @@
       <span id="p-block" class="pblock"></span>
       <span id="p-energy" class="energy" title="기력"></span>
       <span id="p-piles" class="piles"></span>
+    </div>
+    <div class="actions">
+      <button id="btn-hold" class="btn small">📌 홀드</button>
+      <button id="btn-emergency" class="btn small">⚡ 긴급 연성</button>
+      <button id="btn-retreat" class="btn small">⛺ 후퇴</button>
       <button id="end-turn" class="btn end">턴 종료</button>
     </div>
+    <p id="hold-hint" class="hold-hint hidden">📌 턴이 끝나도 남길 카드를 누르세요 (기력 1)</p>
     <div id="hand" class="hand"></div>
   </section>
 
@@ -165,9 +190,11 @@
 <script src="js/mathgen.js"></script>
 <script src="js/data.js"></script>
 <script src="js/craft.js"></script>
+<script src="js/cards.js"></script>
 <script src="js/monsters.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/quiz.js"></script>
+<script src="js/cardview.js"></script>
 <script src="js/challenge.js"></script>
 <script src="js/cinematic.js"></script>
 <script src="js/scene.js"></script>

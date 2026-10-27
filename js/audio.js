@@ -113,6 +113,10 @@ DS.Sound = (function () {
       tone({ type: 'sawtooth', f0: 900, f1: 80, dur: 1.2, vol: 0.1 });
       for (let i = 0; i < 10; i++) noise({ dur: 0.08, vol: 0.15, freq: 1500 + i * 300, delay: i * 0.11 });
     },
+    scan() {
+      tone({ type: 'sine', f0: 1200, f1: 2400, dur: 0.18, vol: 0.12 });
+      tone({ type: 'sine', f0: 1800, f1: 3600, dur: 0.18, vol: 0.08, delay: 0.1 });
+    },
     whoosh() { noise({ dur: 0.35, vol: 0.3, freq: 500, sweepTo: 4000, q: 0.8 }); },
     heartbeat() {
       tone({ type: 'sine', f0: 70, f1: 40, dur: 0.14, vol: 0.6 });

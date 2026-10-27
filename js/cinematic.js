@@ -108,5 +108,15 @@ DS.Cinematic = (function () {
     });
   }
 
-  return { banner, grant, forge, cutin, qte };
+  // 선택지 창: 고른 버튼의 번호를 돌려준다
+  function choice(title, desc, options) {
+    return new Promise((resolve) => {
+      const el = layer('choice', `<div class="choice-box"><p class="ch-title">${esc(title)}</p>
+        <p class="ch-desc">${esc(desc)}</p>
+        <div class="ch-opts">${options.map((o, i) => `<button class="btn${i === 0 ? ' primary' : ''}" data-i="${i}">${esc(o)}</button>`).join('')}</div></div>`);
+      el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { el.remove(); resolve(Number(b.dataset.i)); }));
+    });
+  }
+
+  return { banner, grant, forge, cutin, qte, choice };
 })();

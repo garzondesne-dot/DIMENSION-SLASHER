@@ -21,7 +21,7 @@ DS.Scene = function (canvas) {
   const fx = {};
   function resetFx() {
     Object.assign(fx, {
-      slashes: [], parts: [], shards: [], texts: [], rings: [], traces: [],
+      slashes: [], parts: [], shards: [], texts: [], rings: [], traces: [], scanT: 0,
       shake: 0, flash: null, glitch: 0, glitchMax: 1, hitstop: 0, slowmo: false,
       heroDx: 0, enemyDx: 0, enemyFlash: 0, heroFlash: 0, enemyAlpha: 1, shieldFlash: 0,
     });
@@ -212,7 +212,8 @@ DS.Scene = function (canvas) {
   }
 
   // ── 문제 그림 ─────────────────────────────────────────────
-  const visible = (el) => B.stepIdx >= (el.from || 0) && (el.until == null || B.stepIdx < el.until);
+  const visible = (el) => B.stepIdx >= (el.from || 0) && (el.until == null || B.stepIdx < el.until)
+    && (el.scan == null || B.revealed >= el.scan);
 
   function strokeLine(a, b, color, w, opt = {}) {
     ctx.lineCap = 'round';
@@ -317,7 +318,7 @@ DS.Scene = function (canvas) {
         const beat = 1 + Math.max(0, Math.sin(time * 6)) * 0.25;
         glow(p.x, p.y, (B.stepIdx >= 2 ? 34 : 24) * beat, 'rgba(255,51,85,0.6)');
         pixelHeart(p.x, p.y, 2 * beat);
-        labelAt(p, el.label, '#ffd0da', 12, -10);
+        if (el.labelScan == null || B.revealed >= el.labelScan) labelAt(p, el.label, '#ffd0da', 12, -10);
       }
     }
   }
@@ -384,6 +385,17 @@ DS.Scene = function (canvas) {
       ctx.globalAlpha = 0.35 + Math.sin(time * 3) * 0.1;
       strokeLine(t.a, t.b, t.color, 4, { glow: true });
       ctx.globalAlpha = 1;
+    }
+    if (fx.scanT > 0) { // 스캔 광선: 화면을 위에서 아래로 훑는다
+      const y = (1 - fx.scanT / 0.6) * GROUND;
+      const g = ctx.createLinearGradient(0, y - 30, 0, y + 4);
+      g.addColorStop(0, 'rgba(125,249,255,0)');
+      g.addColorStop(1, 'rgba(125,249,255,0.45)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, y - 30, W, 34);
+      ctx.fillStyle = '#7df9ff';
+      ctx.fillRect(0, y + 2, W, 2);
+      fx.scanT -= dt;
     }
     for (const s of fx.slashes) {
       const k = s.life / s.max;
@@ -690,6 +702,11 @@ DS.Scene = function (canvas) {
       fade();
     },
     setSlowmo(on) { fx.slowmo = on; },
+    scanFx() {
+      fx.scanT = 0.6;
+      const c = enemyCenter();
+      text(c.x, c.y - 130, 'SCAN', '#7df9ff', 18);
+    },
     rewind(seconds = 1.6) { fx.glitch = seconds; fx.glitchMax = seconds; },
   };
 };
