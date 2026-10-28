@@ -554,3 +554,8 @@ h3.shelf-title { margin: 10px 0 6px; font-size: 14px; }
 .tut-bubble { position: fixed; pointer-events: auto; background: var(--panel); border: 3px solid var(--gold); padding: 12px 14px; animation: pop 0.25s ease-out; }
 .tut-text { margin: 0 0 8px; white-space: pre-line; font-size: 16px; line-height: 1.6; }
 .tut-btns { display: flex; justify-content: flex-end; gap: 8px; }
+.forge-msg .rare-note { color: #ffd84a; }
+
+/* ── v0.3: 플레이어 디버프 · 적 디버프 의도 ── */
+.pstatus .chip { margin-left: 4px; }
+.intent.debuff { color: #ff8fa3; border: 1px solid #7a3a52; padding: 0 4px; }

@@ -23,6 +23,15 @@ DS.Parts = {
   sumSq: { name: '제곱의 합', sym: '(x₂−x₁)²+(y₂−y₁)²', mid: true },
   slope: { name: '기울기', sym: 'm = (y₂−y₁)/(x₂−x₁)', mid: true },
   mPrime: { name: 'm′', sym: 'm′', inf: true },
+  // 3·4층 (원): 원의 방정식·점과 직선 사이의 거리·완전제곱 재료
+  radius: { name: '반지름 r', sym: 'r' },
+  lineGen: { name: '직선 (일반형)', sym: 'ax + by + c = 0' },
+  normLen: { name: '계수 길이', sym: '√(a² + b²)' },
+  genCircle: { name: '원 (일반형)', sym: 'x² + y² + Ax + By + C = 0' },
+  halfSq: { name: '반의 제곱', sym: '(A/2)² + (B/2)²' },
+  circR: { name: '원 위의 점 조건', sym: '√((x−a)²+(y−b)²) = r', mid: true },
+  plug: { name: '대입한 값', sym: 'ax₁ + by₁ + c', mid: true },
+  absPlug: { name: '대입값의 절댓값', sym: '|ax₁ + by₁ + c|', mid: true },
 };
 
 // ── 연산 (무한) ──────────────────────────────────────────
@@ -36,7 +45,9 @@ DS.Ops = {
   abs: { sym: '|·|', name: '절댓값', unary: true },
   ratio: { sym: 'm : n', name: '내분 비율' },
   eq: { sym: '=', name: '같다' },
-  simul: { sym: '{', name: '연립', locked: 'V0.4에서 열림' },
+  subst: { sym: '↦', name: '대입', floor: 3 }, // floor: 이 층부터 보임
+  cmp: { sym: '⋚', name: '비교', floor: 3 },
+  simul: { sym: '{', name: '연립', locked: '다음 버전에서 열림' },
 };
 
 // ── 카드 종류 ────────────────────────────────────────────
@@ -53,9 +64,13 @@ DS.Cards = {
   line: { name: '직선의 방정식', tier: 'magic', formula: 'y − y₁ = m(x − x₁)', score: 13, tool: true, desc: '한 점과 기울기로 직선 세우기' },
   dist: { name: '두 점 사이의 거리', tier: 'magic', formula: '√((x₂−x₁)²+(y₂−y₁)²)', score: 16, tool: true, desc: '좌표평면 위 거리' },
 
-  // 최종보스 체험판 전용 (기억 복원으로 지급)
-  circle: { name: '원의 방정식', tier: 'rare', formula: '(x−a)²+(y−b)² = r²', score: 17, tool: true, desc: '중심과 반지름' },
-  ptLine: { name: '점과 직선 사이의 거리', tier: 'rare', formula: '|ax₁+by₁+c|/√(a²+b²)', score: 20, tool: true, desc: '수선의 발까지의 거리' },
+  // 3·4층 (v0.3). 레어: 이름별 1장, 재료로 써도 사라지지 않음, 다시 연성하면 둘 중 하나를 고름
+  completeSq: { name: '완전제곱', tier: 'magic', formula: 'x² + Ax = (x + A/2)² − (A/2)²', score: 4, tool: true, desc: '일반형 원을 표준형으로' },
+  circle: { name: '원의 방정식', tier: 'rare', formula: '(x−a)²+(y−b)² = r²', score: 21, tool: true, desc: '중심과 반지름' },
+  ptLine: { name: '점과 직선 사이의 거리', tier: 'rare', formula: '|ax₁+by₁+c|/√(a²+b²)', score: 9, tool: true, desc: '수선의 발까지의 거리' },
+  posRel: { name: '원과 직선의 위치 관계', tier: 'magic', formula: 'd < r · d = r · d > r', score: 12, tool: true, desc: '중심과 직선 사이의 거리 d를 반지름 r과 비교' },
+
+  // 전투 중 각성(유니크) · 최종보스 체험판 전용
   dPlusR: { name: '한계 일도양단', tier: 'unique', formula: 'd − r ≤ h ≤ d + r', tool: true, desc: '원 위의 점에서 직선까지 거리의 범위', fixed: { atk: 30, def: 0, affixes: [['pierce', 1], ['critRate', 25], ['crush', 15]] } },
   triArea: { name: '정삼각형 넓이', tier: 'special', formula: 'S = h²/√3', score: 8, tool: true, desc: '높이로 나타낸 넓이' },
 };
@@ -78,7 +93,7 @@ DS.Affixes = {
 DS.SCAN_CHANCE = 0.35; // 일반 카드에 스캔이 붙을 확률
 
 // ── 버전 · 베타 테스트 설정 ─────────────────────────────────
-DS.VERSION = 'v0.2.2';
+DS.VERSION = 'v0.3';
 DS.BETA = true; // 베타 테스트 표시(BETA 배지·안내). 정식판에서는 false
 DS.GUIDE = false; // 조합법 전체 공개 창 (v0.2.2에서 끔: 발견하는 재미 유지, 대신 첫 연성 튜토리얼)
 // 결과 보내기: 선생님 구글 시트에 연결한 Apps Script 웹 앱 주소. 비어 있으면 결과 코드만 보여 준다.
@@ -94,6 +109,8 @@ DS.Progress = {
   floors: {
     1: { title: '1층 · 수직선의 회랑', unit: '선분의 내분 (교과서 12~17쪽)' },
     2: { title: '2층 · 직선의 성벽', unit: '직선의 위치 관계 (교과서 18~22쪽)' },
+    3: { title: '3층 · 원환의 신전', unit: '점과 직선 사이의 거리, 원의 방정식 (교과서 23~34쪽)' },
+    4: { title: '4층 · 유성의 관측소', unit: '원과 직선의 위치 관계 (교과서 35~41쪽)' },
   },
   nodes: [
     { type: 'camp', floor: 1, parts: { x1: 6, x2: 6 } },
@@ -104,6 +121,19 @@ DS.Progress = {
     { type: 'battle', floor: 2, monster: 'bat', reward: { x1: 4, x2: 4, pt1: 1 } },
     { type: 'camp', floor: 2 },
     { type: 'battle', floor: 2, monster: 'beast' },
+    // 3층 · 4층 (v0.3). 첫 캠프에서 원 단원 부품을 받는다 (옛 저장이 2층 클리어 상태여도 여기서 이어짐)
+    { type: 'camp', floor: 3, parts: { lineGen: 3, pt1: 3, normLen: 3, radius: 3, genCircle: 2, halfSq: 2, x1: 4, x2: 4 } },
+    { type: 'battle', floor: 3, monster: 'spider', reward: { radius: 1, x1: 2, x2: 2 } },
+    { type: 'camp', floor: 3 },
+    { type: 'battle', floor: 3, monster: 'mask', reward: { x1: 3, x2: 3, pt1: 1 } },
+    { type: 'camp', floor: 3 },
+    { type: 'battle', floor: 3, monster: 'ringSpirit', reward: { x1: 4, x2: 4, radius: 2, lineGen: 2, normLen: 2, pt1: 2 } },
+    { type: 'camp', floor: 4 },
+    { type: 'battle', floor: 4, monster: 'meteor', reward: { radius: 1, x1: 2, x2: 2 } },
+    { type: 'camp', floor: 4 },
+    { type: 'battle', floor: 4, monster: 'knight', reward: { x1: 3, x2: 3, pt1: 1, radius: 1 } },
+    { type: 'camp', floor: 4 },
+    { type: 'battle', floor: 4, monster: 'gatekeeper', unlock: 'dPlusR' },
     { type: 'clear' },
   ],
 };

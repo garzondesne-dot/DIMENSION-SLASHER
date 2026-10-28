@@ -23,6 +23,14 @@ DS.Craft = (function () {
     { op: 'eq', in: ['part:slope', 'part:mPrime'], out: { kind: 'card', id: 'para' } },
     { op: 'times', in: ['part:slope', 'part:mPrime'], out: { kind: 'card', id: 'perp' } },
     { op: 'minus', in: ['part:pt1', 'part:slope'], out: { kind: 'card', id: 'line' } },
+    // 3·4층: 원 단원 (교과서 23~41쪽)
+    { op: 'subst', in: ['part:lineGen', 'part:pt1'], out: { kind: 'part', id: 'plug' } }, // 직선의 식에 한 점 대입
+    { op: 'abs', in: ['part:plug'], out: { kind: 'part', id: 'absPlug' } },
+    { op: 'div', in: ['part:absPlug', 'part:normLen'], ordered: true, out: { kind: 'card', id: 'ptLine' } },
+    { op: 'eq', in: ['card:dist', 'part:radius'], out: { kind: 'part', id: 'circR' } }, // CP = r
+    { op: 'sq', in: ['part:circR'], out: { kind: 'card', id: 'circle' } }, // 양변 제곱
+    { op: 'plus', in: ['part:genCircle', 'part:halfSq'], out: { kind: 'card', id: 'completeSq' } },
+    { op: 'cmp', in: ['card:ptLine', 'part:radius'], out: { kind: 'card', id: 'posRel' } }, // d ⋚ r
   ];
 
   // 자주 하는 실수 → 개념 피드백. 키: 연산|재료(정렬), 순서가 중요한 경우 연산>재료(순서대로)
@@ -52,6 +60,16 @@ DS.Craft = (function () {
     'times|part:pt1,part:slope': '직선의 방정식은 y − y₁ = m(x − x₁). 점을 빼서 옮기는 게 먼저예요(−).',
     'times|part:slope,part:slope': '기울기 두 개 대신 [기울기] × [m′] 으로 수직 조건을 만들어요.',
     'eq|part:slope,part:slope': '기울기 두 개 대신 [기울기] = [m′] 으로 평행 조건을 만들어요.',
+    'div>part:normLen,part:absPlug': '거꾸로예요! 거리 = |ax₁ + by₁ + c| ÷ √(a² + b²). 절댓값이 위, 계수 길이가 아래!',
+    'div|part:normLen,part:plug': '거리는 음수가 될 수 없어요. 먼저 |·| 절댓값을 씌우고 나누세요.',
+    'subst|part:lineGen,part:x1': '직선의 식에 넣을 것은 점 하나의 좌표 (x₁, y₁)예요. [한 점]을 대입하세요.',
+    'subst|part:lineGen,part:x2': '직선의 식에 넣을 것은 점 하나의 좌표 (x₁, y₁)예요. [한 점]을 대입하세요.',
+    'plus|card:dist,part:radius': '원 위의 점은 중심까지의 거리가 반지름과 같아요. 더하기가 아니라 = (같다)!',
+    'sq|card:dist': '먼저 [거리] = [반지름 r] 로 원 위의 점의 조건을 세우고, 그다음에 양변을 제곱해요.',
+    'minus|part:genCircle,part:halfSq': '빼면 제곱 꼴이 안 돼요. 양변에 (A/2)² + (B/2)² 를 더해서 완전제곱을 만들어요.',
+    'cmp|card:dist,part:radius': '두 점 사이의 거리가 아니라 중심에서 직선까지의 거리 d, [점과 직선 사이의 거리]가 필요해요.',
+    'cmp|card:circle,part:radius': '원의 방정식이 아니라, 중심에서 직선까지의 거리 d를 반지름 r과 비교해요.',
+    'eq|card:ptLine,part:radius': 'd = r 은 접할 때뿐이에요. ⋚ 비교로 세 경우(두 점, 접함, 안 만남)를 한 번에 판정해요.',
   };
 
   // y축 카드도 같은 피드백을 쓰도록 키를 x 로 바꿔 한 번 더 찾는다
@@ -153,6 +171,37 @@ DS.Craft = (function () {
     }
     return out;
   }
+  // 3·4층 카드 (원 단원)
+  const DIST = [D2, [null, 'sq', 'card:diff@x', 'card:diffSq@x'], [null, 'sq', 'card:diff@y', 'card:diffSq@y'],
+    ['card:diffSq@x', 'plus', 'card:diffSq@y', 'part:sumSq'], [null, 'root', 'part:sumSq', 'card:dist']];
+  const PTLINE = [['part:lineGen', 'subst', 'part:pt1', 'part:plug'], [null, 'abs', 'part:plug', 'part:absPlug'],
+    ['part:absPlug', 'div', 'part:normLen', 'card:ptLine']];
+  BOOK.push(
+    {
+      card: 'ptLine', floor: 3, chain: '[직선]에 [한 점] 대입 → |·| → ÷ [√(a² + b²)]', hint: '직선의 식에 점의 좌표를 넣어 보면…',
+      lore: '점과 직선 사이의 거리 = |ax₁ + by₁ + c| ÷ √(a² + b²). 교과서 24쪽',
+      quick: { parts: { lineGen: 1, pt1: 1, normLen: 1 } }, emergency: [], refund: { pt1: 1 },
+      guide: PTLINE,
+    },
+    {
+      card: 'completeSq', floor: 3, chain: '[원 (일반형)] + [(A/2)² + (B/2)²]', hint: '양변에 같은 수를 더해 제곱 꼴을 만들면…',
+      lore: 'x² + 6x = (x + 3)² − 9 처럼, 양변에 (A/2)² + (B/2)² 를 더하면 원의 중심과 반지름이 보인다. 교과서 32쪽',
+      quick: { parts: { genCircle: 1, halfSq: 1 } }, emergency: [], refund: { genCircle: 1 },
+      guide: [['part:genCircle', 'plus', 'part:halfSq', 'card:completeSq']],
+    },
+    {
+      card: 'circle', floor: 3, chain: '[두 점 사이의 거리] = [반지름 r] → ²', hint: '원 위의 점은 중심에서 언제나 같은 거리에…',
+      lore: '원 위의 점 P에 대하여 CP = r → √((x−a)² + (y−b)²) = r → 양변을 제곱. 교과서 30쪽',
+      quick: { parts: { radius: 1 }, cards: { dist: 1 } }, emergency: [], refund: { radius: 1 },
+      guide: [...DIST, ['card:dist', 'eq', 'part:radius', 'part:circR'], [null, 'sq', 'part:circR', 'card:circle']],
+    },
+    {
+      card: 'posRel', floor: 4, chain: '[점과 직선 사이의 거리] ⋚ [반지름 r]', hint: '중심에서 직선까지의 거리와 반지름을 견주면…',
+      lore: 'd < r 이면 두 점에서, d = r 이면 한 점에서(접한다), d > r 이면 만나지 않는다. 교과서 35쪽',
+      quick: { parts: { radius: 1 }, cards: { ptLine: 1 } }, emergency: [{ ptLine: 1 }], refund: { radius: 1 },
+      guide: [...PTLINE, ['card:ptLine', 'cmp', 'part:radius', 'card:posRel']],
+    },
+  );
   const MASTERY = 3;
   const book = (id) => BOOK.find((b) => b.card === id);
 

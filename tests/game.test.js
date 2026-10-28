@@ -27,8 +27,8 @@ const tok = (k) => {
 };
 
 // ── 1. 연성 나무 ──────────────────────────────────────────
-// 시작 부품(점 x₁·x₂, 한 점, 무한 m′)에서 규칙을 반복 적용해 도달 가능한 결과
-const have = new Set(['part:x1', 'part:x2', 'part:pt1', 'part:mPrime']);
+// 캠프에서 받는 부품(점 x₁·x₂, 한 점, 무한 m′, 3층의 원 단원 부품)에서 규칙을 반복 적용해 도달 가능한 결과
+const have = new Set(['part:x1', 'part:x2', 'part:pt1', 'part:mPrime', 'part:radius', 'part:lineGen', 'part:normLen', 'part:genCircle', 'part:halfSq']);
 for (let round = 0; round < 8; round++) {
   for (const r of Craft.RULES) {
     if (r.in.every((k) => have.has(k))) {
@@ -39,7 +39,9 @@ for (let round = 0; round < 8; round++) {
   }
 }
 for (const [id, c] of Object.entries(Cards)) {
-  if (['basic', 'normal', 'magic'].includes(c.tier)) check(have.has(`card:${id}`), `연성 불가능한 카드: ${id}`);
+  if (['basic', 'normal', 'magic', 'rare'].includes(c.tier) && id !== 'dPlusR') {
+    if (['circle', 'ptLine'].includes(id) || c.tier !== 'rare') check(have.has(`card:${id}`), `연성 불가능한 카드: ${id}`);
+  }
 }
 for (const r of Craft.RULES) {
   const mats = r.in.map(tok);
@@ -58,10 +60,10 @@ check(/두 점의 좌표/.test(Craft.match('ratio', tok('card:segLen@x')).msg), 
 check(Craft.match('sq', tok('card:segLen@y')).out.id === 'diffSq' && Craft.match('sq', tok('card:segLen@y')).out.axis === 'y', '선분² = 차이² (축 유지)');
 check(!Craft.match('times', tok('part:pt1'), tok('part:mPrime')).ok, 'm′ 은 기울기에만 반응');
 check(/m′/.test(Craft.match('plus', tok('part:slope'), tok('part:mPrime')).msg), 'm′ 피드백');
-check(/V0.4/.test(Craft.match('simul', tok('part:x1'), tok('part:x2')).msg), '연립 잠김');
+check(/다음 버전/.test(Craft.match('simul', tok('part:x1'), tok('part:x2')).msg), '연립 잠김');
 check(Parts.mPrime.inf && Ops.simul.locked, 'm′ 무한, 연립 잠김 표시');
 for (const b of Craft.BOOK) {
-  check(Cards[b.card] && ['basic', 'normal', 'magic'].includes(Cards[b.card].tier), `도감 카드 등급: ${b.card}`);
+  check(Cards[b.card] && ['basic', 'normal', 'magic', 'rare'].includes(Cards[b.card].tier), `도감 카드 등급: ${b.card}`);
   for (const id of Object.keys(b.quick.parts || {})) check(Parts[id] && !Parts[id].inf, `즉시 연성 부품: ${id}`);
   for (const id of Object.keys(b.quick.cards || {})) check(Cards[id], `즉시 연성 카드: ${id}`);
   for (const e of b.emergency) for (const id of Object.keys(e)) check(Cards[id], `긴급 연성 재료는 카드여야 함: ${id}`);
@@ -145,9 +147,64 @@ check(near(area(Math.SQRT2), 2 * Math.sqrt(3) / 3) && near(area(5 * Math.SQRT2),
 ['x − y + 6 = 0', '중심 (0, 0), 반지름 2√2', '3√2', '√2 ≤ h ≤ 5√2', 'S = h²/√3', '최솟값 2√3/3 · 최댓값 50√3/3']
   .forEach((a, i) => check(ans('finalBoss', i) === a, `최종보스 ${i + 1}단계`));
 
-// 캠페인 도구는 연성 가능한 등급이어야 함
+// ── 3층·4층 (원 단원) 독립 검산 ────────────────────────────
+// 'a√b/c', '√b', 'n/d', 'n' 꼴의 답을 수로 바꾼다
+const val = (str) => {
+  const m = String(str).replace('−', '-').match(/^(-?\d*)(?:√(\d+))?(?:\/(\d+))?$/);
+  if (!m) return NaN;
+  const coef = m[1] === '' ? 1 : m[1] === '-' ? -1 : Number(m[1]);
+  return (coef * (m[2] ? Math.sqrt(Number(m[2])) : 1)) / (m[3] ? Number(m[3]) : 1);
+};
+const MG = ctx.DS.MathGen;
+for (let t = 0; t < 3000; t++) { // 수선 거미: 무작위 점과 직선, 정수 답
+  const p = MG.gen.ptLineDist();
+  const { x1, y1, a, b, c } = p.params;
+  const d = Math.abs(a * x1 + b * y1 + c) / Math.hypot(a, b);
+  check(near(val(p.answer), d) && Number.isInteger(d) && d > 0, `점과 직선 거리 ${p.question} → ${p.answer}`);
+  check(a > 0 && p.choices.length === 4 && new Set(p.choices).size === 4, `점과 직선 거리 보기: ${p.question}`);
+}
+{
+  const sp = Monsters.spider.makeProblem({ x1: 3, y1: 5, a: 4, b: -3, c: -12 }); // 24쪽 보기
+  check(sp.steps[0].challenge().answer === '3', '교과서 24쪽 보기: 3');
+  const st = (id, i) => Monsters[id].makeProblem().steps[i].challenge().answer;
+  // 가면 원령: x² + y² + 6x − 4y − 3 = 0 → (x + 3)² + (y − 2)² = 16 (전개해서 같은 식인지 점 몇 개로 확인)
+  for (const [x, y] of [[0, 0], [1, 2], [-3, 5], [7, -4]]) {
+    check(near((x + 3) ** 2 + (y - 2) ** 2 - 16, x * x + y * y + 6 * x - 4 * y - 3), '가면 원령 완전제곱 전개');
+  }
+  check(st('mask', 0) === '(x + 3)² + (y − 2)² = 16' && st('mask', 1) === '중심 (−3, 2), 반지름 4', '가면 원령 정답');
+  // 고리 정령: 중심 = A(2, 8), B(10, 2)의 중점, 반지름 = CA, A·B가 원 위에 있음
+  const C = [(2 + 10) / 2, (8 + 2) / 2], r = Math.hypot(2 - C[0], 8 - C[1]);
+  check(C[0] === 6 && C[1] === 5 && r === 5, '고리 정령 중심·반지름');
+  check((10 - 6) ** 2 + (2 - 5) ** 2 === 25 && (2 - 6) ** 2 + (8 - 5) ** 2 === 25, '고리 정령: 지름 양 끝이 원 위');
+  check(st('ringSpirit', 0) === '(6, 5)' && st('ringSpirit', 1) === '5' && st('ringSpirit', 2) === '(x − 6)² + (y − 5)² = 25', '고리 정령 정답');
+  // 유성: x² + y² = 16, y = x − 2 → d = √2 < 4, 대입한 이차방정식 판별식 > 0 (두 점)
+  const dm = Math.abs(-2) / Math.hypot(1, -1);
+  check(near(dm, Math.SQRT2) && dm < 4 && (-4) ** 2 - 4 * 2 * -12 > 0, '유성: d = √2, 두 점에서 만남');
+  check(st('meteor', 0) === '√2' && st('meteor', 1) === '서로 다른 두 점에서 만난다', '유성 정답');
+  // 접선 기사: P(4, 3)이 원 위, 접선 4x + 3y = 25 는 P를 지나고 원점과의 거리 = 반지름 5 (접함)
+  check(16 + 9 === 25 && 4 * 4 + 3 * 3 === 25 && near(25 / Math.hypot(4, 3), 5), '접선 기사: 접선 검산');
+  check(near((3 / 4) * (-4 / 3), -1), '접선 기사: 반지름과 접선 수직');
+  check(st('knight', 0) === '−4/3' && st('knight', 1) === '4x + 3y = 25', '접선 기사 정답');
+  // 원환의 수문장(41쪽 07번): 원 위의 점을 3600개 찍어 직선까지 거리의 최대·최소를 직접 구한다
+  let mx = -Infinity, mn = Infinity;
+  for (let k = 0; k < 3600; k++) {
+    const th = (k / 3600) * 2 * Math.PI, x = 2 + 2 * Math.cos(th), y = 5 + 2 * Math.sin(th);
+    const dd = Math.abs(3 * x - 4 * y - 6) / 5;
+    mx = Math.max(mx, dd); mn = Math.min(mn, dd);
+  }
+  check(Math.abs(mx - 6) < 1e-3 && Math.abs(mn - 2) < 1e-3, `07번 최대·최소 직접 계산 ${mx}, ${mn}`);
+  check(st('gatekeeper', 0) === '중심 (2, 5), 반지름 2' && st('gatekeeper', 1) === '4' && st('gatekeeper', 2) === '최댓값 6, 최솟값 2', '07번 정답');
+}
+
+// 캠페인 도구는 캠프에서 연성할 수 있어야 함 (유니크는 전투 중 각성: 재료 레어가 연성 가능해야 함)
 for (const n of Progress.nodes.filter((x) => x.type === 'battle')) {
-  for (const s of Monsters[n.monster].makeProblem().steps) check(['normal', 'magic'].includes(Cards[s.tool].tier), `캠페인 도구 등급: ${s.tool}`);
+  for (const s of Monsters[n.monster].makeProblem().steps) {
+    if (Cards[s.tool].tier === 'unique') {
+      check(s.forge && s.forge.from.every((id) => Craft.book(id)), `캠페인 유니크 각성 재료: ${s.tool}`);
+    } else check(Craft.book(s.tool) && ['normal', 'magic', 'rare'].includes(Cards[s.tool].tier), `캠페인 도구 연성 가능: ${s.tool}`);
+    // 도구 카드의 레시피가 그 층까지 열려 있어야 함
+    if (Craft.book(s.tool)) check(Craft.book(s.tool).floor <= n.floor, `도구 레시피 층: ${s.tool} (${n.floor}층)`);
+  }
 }
 
 // 조합법 창(베타)의 안내가 실제 연성 규칙과 맞는지: 각 단계를 그대로 모루에 올려 결과를 확인
@@ -223,4 +280,4 @@ for (let t = 0; t < 300; t++) {
 }
 
 if (failures) { console.error(`\n${failures}건 실패`); process.exit(1); }
-console.log(`OK: 연성 규칙 ${Craft.RULES.length}개 · 카드 수치·옵션 · 덱 규칙 · 몬스터 ${Object.keys(Monsters).length}종 · 보스 정답 검산 · 조합법 안내 · 세이브 왕복 통과`);
+console.log(`OK: 연성 규칙 ${Craft.RULES.length}개 · 카드 수치·옵션 · 덱 규칙 · 몬스터 ${Object.keys(Monsters).length}종 · 보스 정답 검산 · 3·4층 원 단원 검산 · 조합법 안내 · 세이브 왕복 통과`);

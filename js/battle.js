@@ -4,6 +4,8 @@
 //  - 문턱에서는 맞는 풀이 카드만 문턱을 깬다 (그 단계에 필요한 조각이 공개돼 있어야 함)
 //  - 공격·크리티컬·옵션 효과는 문턱을 넘지 못한다
 //  - 전투는 덱의 복사본으로 진행 → 긴급 연성·기억 복원 카드는 전투가 끝나면 사라지고 재료는 원래대로
+//  - 적의 의도에 디버프가 붙으면 플레이어가 취약(받는 피해 ×1.5)·약화(카드 공격 ×0.75)에 걸린다 (풀이 피해는 약화 안 됨)
+//  - 단계에 forge 가 있으면 전투 중 각성: 재료 레어 중 하나는 손에, 나머지는 덱에 있으면 유니크가 연성된다
 window.DS = window.DS || {};
 
 DS.Battle = (function () {
@@ -30,7 +32,7 @@ DS.Battle = (function () {
       def, prob: opts.problem, trial: !!opts.trial, mastery: opts.mastery || {},
       stepIdx: 0, mult: def.startMult, atkDown: 0, phaseShown: -1, forged: false,
       revealed: 1, gateTurns: 0, emergencyUsed: false, holdUid: null,
-      player: { hp: PLAYER_HP, max: PLAYER_HP, block: 0 },
+      player: { hp: PLAYER_HP, max: PLAYER_HP, block: 0, vuln: 0, weak: 0 },
       energy: MAX_ENERGY,
       draw: DS.MathGen.shuffle(opts.deck.map((c) => ({ ...c, affixes: c.affixes.map((a) => a.slice()) }))),
       hand: [], discard: [], turn: 0,
@@ -95,13 +97,26 @@ DS.Battle = (function () {
   // 최종보스 체험판: 지금 단계의 도구를 손에 쥐여 준다 (기억 복원 / 전투 중 유니크 연성)
   async function ensureTool() {
     const step = curStep();
-    if (!B.trial || !step || !step.grant || B.hand.some((c) => c.id === step.tool)) return;
+    if (!step || B.hand.some((c) => c.id === step.tool)) return;
+    // 전투 중 각성 (유니크): 체험판은 바로, 캠페인은 재료 레어 하나는 손에·나머지는 덱에 있을 때
     if (step.forge && !B.forged) {
-      B.forged = true;
-      await DS.Cinematic.forge(step.forge.from, step.tool);
-    } else {
-      await DS.Cinematic.grant(step.tool);
+      const from = step.forge.from;
+      const inHand = (id) => B.hand.some((c) => c.id === id);
+      const inBattle = (id) => inHand(id) || B.draw.some((c) => c.id === id) || B.discard.some((c) => c.id === id);
+      if (B.trial || (from.some(inHand) && from.every(inBattle))) {
+        B.forged = true;
+        await DS.Cinematic.forge(from, step.tool);
+        B.hand.push(takeOrMake(step.tool));
+        render();
+        return;
+      }
+      if (!B.forgeHint) {
+        B.forgeHint = true;
+        toast(`${from.map((id) => DS.Cards[id].name).join(' + ')} 레어가 손과 덱에 있으면 전투 중에 각성할 수 있다…`, 3200);
+      }
     }
+    if (!B.trial || !step.grant) return;
+    await DS.Cinematic.grant(step.tool);
     B.hand.push(takeOrMake(step.tool));
     render();
   }
@@ -173,11 +188,15 @@ DS.Battle = (function () {
     const it = def.intents[e.intent % def.intents.length];
     const v = enemyDamage(it);
     $('#e-intent').innerHTML = e.hp > 0
-      ? `다음 행동: <span class="intent atk">⚔ ${v}</span> ${esc(it.label)}${it.block ? ` <span class="intent buff">+방어 ${it.block}</span>` : ''}` : '';
+      ? `다음 행동: <span class="intent atk">⚔ ${v}</span> ${esc(it.label)}${it.block ? ` <span class="intent buff">+방어 ${it.block}</span>` : ''}`
+        + (it.debuff && it.debuff.vuln ? ` <span class="intent debuff">+취약 ${it.debuff.vuln}턴</span>` : '')
+        + (it.debuff && it.debuff.weak ? ` <span class="intent debuff">+약화 ${it.debuff.weak}턴</span>` : '') : '';
 
     $('#p-hpfill').style.width = (100 * p.hp) / p.max + '%';
     $('#p-hptext').textContent = `${p.hp} / ${p.max}`;
     $('#p-block').textContent = p.block ? `방어 ${p.block}` : '';
+    $('#p-status').innerHTML = (p.vuln ? `<span class="chip weak">취약 ${p.vuln}턴</span>` : '')
+      + (p.weak ? `<span class="chip down">약화 ${p.weak}턴</span>` : '');
     $('#p-energy').innerHTML = '<i class="on"></i>'.repeat(Math.min(B.energy, 6)) + '<i></i>'.repeat(Math.max(0, MAX_ENERGY - B.energy));
     $('#p-piles').textContent = `덱 ${B.draw.length} · 버림 ${B.discard.length}`;
 
@@ -269,7 +288,8 @@ DS.Battle = (function () {
       scene.heroStrike();
       DS.Sound.slash();
       await wait(140);
-      await hitEnemy(card.atk, { card });
+      // 약화: 카드 공격만 ×0.75 (풀이 피해는 그대로)
+      await hitEnemy(B.player.weak ? Math.max(1, Math.round(card.atk * 0.75)) : card.atk, { card });
     }
     await guardAndScan(card);
     // 행운의 적중·추가 드로우
@@ -435,7 +455,7 @@ DS.Battle = (function () {
     const o = opts[idx];
     B.energy -= 1;
     B.emergencyUsed = true;
-    B.hand = B.hand.filter((c) => !o.pick.includes(c));
+    B.hand = B.hand.filter((c) => !o.pick.includes(c) || K.isRare(c)); // 레어 재료는 손에 남는다
     const made = K.roll(o.card, 'x', { temp: true });
     B.hand.push(made);
     DS.Sound.forge();
@@ -454,7 +474,7 @@ DS.Battle = (function () {
   // ── 적 턴 ────────────────────────────────────────────────
   function enemyDamage(it) {
     const base = Math.max(0, it.v - B.atkDown);
-    return Math.round(base * (1 - B.enemy.weak / 100));
+    return Math.round(base * (1 - B.enemy.weak / 100) * (B.player.vuln ? 1.5 : 1)); // 플레이어 취약: ×1.5
   }
   async function endTurn() {
     if (busy || !B) return;
@@ -480,6 +500,13 @@ DS.Battle = (function () {
     scene.enemyAttack(dmg, blocked);
     if (dmg > 0) setTimeout(() => DS.Sound.hurt(), 120);
     e.intent++;
+    // 디버프 지속 턴 감소 → 이번 행동의 디버프 적용 (다음 적 행동까지 남아 있음)
+    if (p.vuln) p.vuln--;
+    if (p.weak) p.weak--;
+    if (it.debuff) {
+      if (it.debuff.vuln) { p.vuln = Math.max(p.vuln, it.debuff.vuln); scene.note('취약! 받는 피해 ×1.5', '#ff8fa3'); }
+      if (it.debuff.weak) { p.weak = Math.max(p.weak, it.debuff.weak); scene.note('약화! 카드 공격 ×0.75', '#c9a7ff'); }
+    }
     render();
     await wait(750);
 

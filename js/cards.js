@@ -50,6 +50,8 @@ DS.CardKit = (function () {
   };
   const isScan = (card) => !!card.scan;
   const isMagic = (card) => DS.Cards[card.id].tier === 'magic';
+  // 레어: 이름별로 한 장, 재료로 써도 사라지지 않음 (재연성하면 둘 중 하나를 고름)
+  const isRare = (card) => DS.Cards[card.id].tier === 'rare';
 
   // 덱 규칙: 6~12장, 스캔 카드 4장 이상(그중 차이 카드 1장 이상), 매직 4장 이하
   function checkDeck(cards) {
@@ -67,5 +69,5 @@ DS.CardKit = (function () {
     return { ok: rows.every((r) => r.ok), rows };
   }
 
-  return { roll, statRange, affix, critOf, formula, checkDeck, isScan, isMagic, uid };
+  return { roll, statRange, affix, critOf, formula, checkDeck, isScan, isMagic, isRare, uid };
 })();

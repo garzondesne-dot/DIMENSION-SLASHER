@@ -4,6 +4,7 @@
 //          보관함은 카드 종류별 묶음으로 보인다 (칸 순서 고정, 누르면 덱 밖·수치 낮은 카드부터, ▾로 펼쳐 직접 고르기)
 //  덱 구성: 보관함 ↔ 덱 이동, 잠금, 분해(소재 절반 회수), 덱 규칙 검사 — 카드를 낱장으로 비교
 //  첫 연성 튜토리얼: 캠페인 첫 캠프에서 한 번, 눌러야 할 곳만 밝혀 [x₁] − [x₂] → 차이를 함께 만든다
+//  레어: 이름별 1장, 재료로 써도 보관함에 남음, 이미 있는 레어를 다시 연성하면 기존/새 카드 중 하나를 고름
 //  조합법 창: DS.GUIDE 가 켜졌을 때만 (v0.2.2 기본은 꺼짐). 안내 문구는 Craft.BOOK.guide, 테스트로 검증
 window.DS = window.DS || {};
 
@@ -95,6 +96,7 @@ DS.Forge = (function () {
     const box = $('#ops');
     box.innerHTML = '';
     Object.entries(DS.Ops).forEach(([id, o]) => {
+      if (o.floor && st.floor < o.floor) return; // 대입·비교는 3층부터
       const el = document.createElement('div');
       el.className = 'part op' + (o.locked ? ' locked' : '');
       el.dataset.op = id;
@@ -268,6 +270,7 @@ DS.Forge = (function () {
     }
     const c = st.cards.find((x) => x.uid === t.uid);
     if (!c || c.locked) return null;
+    if (K.isRare(c)) return { kind: 'card', id: c.id, axis: c.axis, uid: c.uid, card: c, keep: true }; // 레어는 보관함에 그대로
     st.cards.splice(st.cards.indexOf(c), 1);
     const wasInDeck = st.deckUids.delete(c.uid);
     return { kind: 'card', id: c.id, axis: c.axis, uid: c.uid, card: c, wasInDeck };
@@ -275,6 +278,7 @@ DS.Forge = (function () {
   function giveBack(t) {
     if (!t) return;
     if (t.kind === 'part') { if (!DS.Parts[t.id].inf) st.bag[t.id] = (st.bag[t.id] || 0) + 1; return; }
+    if (t.keep) return;
     st.cards.push(t.card);
     if (t.wasInDeck) st.deckUids.add(t.uid);
   }
@@ -285,6 +289,7 @@ DS.Forge = (function () {
     } else {
       const k = where && where !== 'op' ? where : (!slots.a ? 'a' : !slots.b ? 'b' : null);
       if (!k) { toast('재료 칸이 가득 찼어요. 슬롯을 눌러 빼세요.'); return; }
+      if (t.uid && [slots.a, slots.b].some((x) => x && x.uid === t.uid)) { toast('그 레어 카드는 이미 모루에 있어요.'); return; }
       const got = take(t);
       if (!got) return;
       giveBack(slots[k]);
@@ -350,8 +355,20 @@ DS.Forge = (function () {
   }
 
   // ── 연성 ─────────────────────────────────────────────────
-  function addCard(id, axis) {
+  // 새 카드를 보관함에 넣는다. 레어가 이미 있으면 기존/새 카드 중 하나를 고른다 (Promise: 남은 카드)
+  async function addCard(id, axis) {
     const c = K.roll(id, axis || 'x');
+    const old = K.isRare(c) && st.cards.find((x) => x.id === id);
+    if (old) {
+      const desc = (x) => `⚔${x.atk} 🛡${x.def}${x.affixes.length ? ' · ' + x.affixes.map(([k, v]) => DS.Affixes[k].text(v)).join(', ') : ''}`;
+      const idx = await DS.Cinematic.choice(`레어 재연성 · ${DS.Cards[id].name}`,
+        '레어는 이름별로 한 장만 가질 수 있어요. 남길 카드를 고르세요. (재료는 이미 쓰였어요)',
+        [`기존 카드 유지: ${desc(old)}`, `새 카드로 교체: ${desc(c)}`]);
+      if (idx !== 1) return old;
+      st.cards[st.cards.indexOf(old)] = c;
+      if (st.deckUids.delete(old.uid)) st.deckUids.add(c.uid);
+      return c;
+    }
     st.cards.push(c);
     // 덱에 자리가 있으면 바로 넣어 준다
     const deck = deckCards();
@@ -359,7 +376,7 @@ DS.Forge = (function () {
     return c;
   }
 
-  function forge() {
+  async function forge() {
     const tok = (t) => t && (t.kind === 'part' ? { kind: 'part', id: t.id } : { kind: 'card', id: t.id, axis: t.axis });
     const res = DS.Craft.match(slots.op, tok(slots.a), tok(slots.b));
     const msg = $('#forge-msg'), anvil = $('.anvil');
@@ -371,7 +388,7 @@ DS.Forge = (function () {
       anvil.classList.add('flash');
       msg.className = 'forge-msg ok';
       if (res.out.kind === 'card') {
-        const c = addCard(res.out.id, res.out.axis), r = DS.Craft.book(c.id);
+        const c = await addCard(res.out.id, res.out.axis), r = DS.Craft.book(c.id);
         const isNew = !st.discovered.has(c.id);
         st.discovered.add(c.id);
         st.mastery[c.id] = (st.mastery[c.id] || 0) + 1;
@@ -381,6 +398,7 @@ DS.Forge = (function () {
         lastForgedId = c.id;
         if (tut && c.id === 'diff') tutForged = true;
         msg.innerHTML = `<p><b>${isNew ? '✨ 새 레시피 발견!' : '✨ 연성 성공!'}</b> ${cardLabel(c)}${masteryNote}`
+          + (K.isRare(c) ? '<br><span class="rare-note">레어: 이름별로 한 장 · 재료로 써도 사라지지 않아요</span>' : '')
           + `${st.deckUids.has(c.uid) ? '' : '<br><span class="ng-note">덱이 가득 차서 보관함에 들어갔어요. 덱 구성 탭에서 바꿔 넣으세요.</span>'}</p>`;
       } else {
         st.bag[res.out.id] = (st.bag[res.out.id] || 0) + 1;
@@ -410,13 +428,14 @@ DS.Forge = (function () {
     for (const [id, n] of Object.entries(q.cards || {})) if (!pickCards(id, n)) return false;
     return true;
   }
-  function quickCraft(r) {
+  async function quickCraft(r) {
     if (!affordable(r.quick)) return;
     for (const [id, n] of Object.entries(r.quick.parts || {})) st.bag[id] -= n;
     for (const [id, n] of Object.entries(r.quick.cards || {})) {
+      if (DS.Cards[id].tier === 'rare') continue; // 레어 재료는 사라지지 않음
       pickCards(id, n).forEach((c) => { st.cards.splice(st.cards.indexOf(c), 1); st.deckUids.delete(c.uid); });
     }
-    const c = addCard(r.card, 'x');
+    const c = await addCard(r.card, 'x');
     DS.Sound.forge();
     lastForgedId = c.id;
     const msg = $('#forge-msg');

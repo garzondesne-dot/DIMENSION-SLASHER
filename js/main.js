@@ -113,10 +113,13 @@ window.DS = window.DS || {};
   function afterWin(n, i) {
     const def = DS.Monsters[n.monster];
     if (n.reward) addParts(n.reward);
+    if (n.unlock) G.discovered.add(n.unlock); // 중간보스 보상: 각성 레시피 해금
     DS.Save.write(G, i + 1);
     const next = nodes[i + 1];
     $('#reward-title').textContent = `${def.name} 해결!`;
-    $('#reward-desc').textContent = n.reward ? '문제를 푼 자리에서 새로운 기억의 부품을 얻었다.' : '';
+    $('#reward-desc').textContent = n.unlock
+      ? `각성 레시피 해금: ${DS.Cards[n.unlock].name} [d ± r]. 최종보스와의 결전에서 다시 깨어난다.`
+      : n.reward ? '문제를 푼 자리에서 새로운 기억의 부품을 얻었다.' : '';
     $('#reward-parts').innerHTML = n.reward ? partChips(n.reward) : '';
     $('#reward-next').textContent = next.type === 'clear' ? '' : `다음: ${DS.Progress.floors[next.floor].title}`;
     $('#reward-go').textContent = next.type === 'clear' ? '결과 보기 ▶' : '캠프로 ▶';
@@ -220,7 +223,7 @@ window.DS = window.DS || {};
   // ── 결과 보내기용 기록 ─────────────────────────────────────
   function campaignRecord(g) {
     const n = nodes[g.maxNode] || nodes[0];
-    const reached = n.type === 'clear' ? '2층 클리어' : n.type === 'battle' ? DS.Monsters[n.monster].name : `${DS.Progress.floors[n.floor].title.split(' · ')[0]} 캠프`;
+    const reached = n.type === 'clear' ? '4층 클리어' : n.type === 'battle' ? DS.Monsters[n.monster].name : `${DS.Progress.floors[n.floor].title.split(' · ')[0]} 캠프`;
     const cleared = nodes.filter((x, i) => x.type === 'battle' && i < g.maxNode).length;
     const tutorial = g.tutorial === 'done' ? '완료' : g.tutorial === 'skipped' ? '건너뜀' : '-';
     return { mode: '캠페인', reached, cleared, rewinds: g.loop - 1, tutorial, ...statsRec(g.stats) };
