@@ -1,5 +1,11 @@
 # 폰으로 여는 배포 웹 만들기 (Google Apps Script)
 
+> **v0.3부터 게임은 GitHub Pages(https://garzondesne-dot.github.io/DIMENSION-SLASHER/)에서만 관리한다** ([deploy-github-pages.md](deploy-github-pages.md)).
+> 이 Apps Script 웹 앱은 **결과 받기**만 맡고, 예전 주소(QR)로 들어온 학생에게는 게임 대신 **[▶ 새 주소에서 게임하기]** 버튼을 보여 준다 (`Code.gs` 맨 위 `NEW_URL`).
+> 드라이브에 게임 파일을 다시 올릴 필요가 없다. `NEW_URL = ''`로 비우면 아래 설명대로 드라이브의 게임 파일을 보여 주는 예전 방식으로 돌아간다.
+>
+> `Code.gs`를 바꾼 뒤에는 **배포 → 배포 관리 → ✏️ → 버전: 새 버전 → 배포**. "새 배포"는 주소가 바뀌어 결과가 안 들어오니 주의.
+
 구글 시트 하나에 Apps Script를 붙여 **게임 페이지 + 결과 수집**을 한 번에 한다.
 학생은 웹 앱 주소(또는 QR)만 열면 되고, 로그인은 필요 없다. [📨 결과 보내기]는 같은 시트의 '결과' 탭에 한 줄씩 쌓인다.
 
