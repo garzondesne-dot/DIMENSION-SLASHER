@@ -9,6 +9,7 @@
 - **캠페인 (1~4층):** 캠프(대장간·덱 구성) → 잡몹 → 캠프 → 보스. 문제는 스캔 카드로 조각씩 밝힌다
 - **최종보스 체험판:** 교과서 41쪽 11번, 풀이 6단계 · 3페이즈 · 5초 QTE
 - **베타 테스트:** 타이틀에서 학년·반·번호를 입력하고 시작. 첫 캠프에서 연성 튜토리얼, 📨 결과 보내기 (설정: [docs/beta-report.md](docs/beta-report.md))
+- **웹 배포 + 앱 설치:** GitHub Pages에서 열고 크롬에서 앱으로 설치 (오프라인 실행) — [docs/deploy-github-pages.md](docs/deploy-github-pages.md)
 - **배포 (폰으로 열기):** 구글 시트 + Apps Script 웹 앱으로 게임과 결과 수집을 함께 — [docs/deploy-apps-script.md](docs/deploy-apps-script.md)
 - **세이브:** 캠페인은 캠프마다 자동 저장, 타이틀의 [이어하기]로 계속 (같은 PC·같은 브라우저)
 - PC: 문제 창에서 숫자 1~4로 선택, Enter로 계속, E로 턴 종료

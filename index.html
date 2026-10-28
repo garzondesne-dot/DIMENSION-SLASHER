@@ -4,6 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>DIMENSION SLASHER</title>
+  <meta name="theme-color" content="#0b0a12">
+  <meta name="description" content="공통수학2 도형의 방정식을 카드 덱빌딩 로그라이크로 배우는 게임">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="디멘션 슬래셔">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,7 +40,7 @@
         <button id="btn-start" class="btn primary big">캠페인 (1~4층)</button>
         <button id="btn-trial" class="btn boss big">최종보스 체험판</button>
       </div>
-      <div class="title-btns sub"><button id="btn-report-title" class="btn small">📨 결과 보내기</button></div>
+      <div class="title-btns sub"><button id="btn-report-title" class="btn small">📨 결과 보내기</button><button id="btn-install" class="btn small hidden">📲 앱으로 설치</button></div>
       <p id="save-note" class="hint"></p>
       <p id="beta-note" class="beta-note hidden">베타 테스트 버전입니다. 헷갈리는 점은 결과 보내기의 한줄평에 남겨 주세요.</p>
       <p class="hint">PC: 문제 창에서 숫자 1~4로 선택, E로 턴 종료 · 캠페인은 캠프마다 자동 저장</p>
@@ -255,6 +262,7 @@
 <script src="js/forge.js"></script>
 <script src="js/battle.js"></script>
 <script src="js/titlebg.js"></script>
+<script src="js/pwa.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

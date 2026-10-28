@@ -257,5 +257,6 @@ window.DS = window.DS || {};
 
   newGame();
   bind();
+  DS.PWA.init();
   refreshTitle();
 })();

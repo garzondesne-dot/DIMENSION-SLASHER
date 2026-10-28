@@ -279,5 +279,17 @@ for (let t = 0; t < 300; t++) {
   check(Save.unpack(JSON.parse(JSON.stringify(Save.pack({ ...G0, tutorial: 'skipped' })))).tutorial === 'skipped', '세이브 튜토리얼 기록');
 }
 
+// ── 앱 설치(PWA): 서비스 워커가 저장할 파일 목록이 index.html 의 스크립트와 같은지, 캐시 이름이 버전과 같은지
+{
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const sw = fs.readFileSync(path.join(__dirname, '../sw.js'), 'utf8');
+  const scripts = [...html.matchAll(/<script src="(js\/[^"]+)"><\/script>/g)].map((m) => m[1]);
+  for (const s2 of scripts) check(sw.includes(`'./${s2}'`), `서비스 워커 저장 목록에 없음: ${s2}`);
+  check(sw.includes(`const CACHE = 'ds-${ctx.DS.VERSION}';`), `서비스 워커 캐시 이름 = 버전 (${ctx.DS.VERSION})`);
+  const mf = JSON.parse(fs.readFileSync(path.join(__dirname, '../manifest.webmanifest'), 'utf8'));
+  check(mf.display === 'standalone' && mf.icons.some((x) => x.sizes === '512x512') && mf.icons.some((x) => x.sizes === '192x192'), '매니페스트: 설치 조건');
+  for (const ic of mf.icons) check(fs.existsSync(path.join(__dirname, '..', ic.src)), `아이콘 파일: ${ic.src}`);
+}
+
 if (failures) { console.error(`\n${failures}건 실패`); process.exit(1); }
-console.log(`OK: 연성 규칙 ${Craft.RULES.length}개 · 카드 수치·옵션 · 덱 규칙 · 몬스터 ${Object.keys(Monsters).length}종 · 보스 정답 검산 · 3·4층 원 단원 검산 · 조합법 안내 · 세이브 왕복 통과`);
+console.log(`OK: 연성 규칙 ${Craft.RULES.length}개 · 카드 수치·옵션 · 덱 규칙 · 몬스터 ${Object.keys(Monsters).length}종 · 보스 정답 검산 · 3·4층 원 단원 검산 · 조합법 안내 · 세이브 왕복 · 앱 설치 파일 통과`);

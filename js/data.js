@@ -96,8 +96,9 @@ DS.SCAN_CHANCE = 0.35; // 일반 카드에 스캔이 붙을 확률
 DS.VERSION = 'v0.3';
 DS.BETA = true; // 베타 테스트 표시(BETA 배지·안내). 정식판에서는 false
 DS.GUIDE = false; // 조합법 전체 공개 창 (v0.2.2에서 끔: 발견하는 재미 유지, 대신 첫 연성 튜토리얼)
-// 결과 보내기: 선생님 구글 시트에 연결한 Apps Script 웹 앱 주소. 비어 있으면 결과 코드만 보여 준다.
-DS.REPORT_URL = '';
+// 결과 보내기: 선생님 구글 시트에 연결한 Apps Script 웹 앱 주소 (GitHub Pages·앱 설치판·파일판이 여기로 POST).
+// Apps Script 웹 앱 안에서 열리면 이 주소 대신 google.script.run 을 쓴다. 비우면 결과 코드만 보여 준다.
+DS.REPORT_URL = 'https://script.google.com/macros/s/AKfycbyZD3bDf02Sw89hRrMdwiGMl9Ro42uqFKq1ORqN5hStOw1jsafwBHCkXpni_bPzy7felg/exec';
 
 // ── 덱 규칙 ──────────────────────────────────────────────
 DS.DeckRules = { min: 6, max: 12, minScan: 4, minDiff: 1, maxMagic: 4 };

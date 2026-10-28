@@ -166,6 +166,12 @@
 - **📨 결과 보내기**(`js/report.js`): 타이틀·캠프·클리어 화면. 재미 1~5, 수학 느낌 1~5, 한줄평 + 학년·반·번호·모드·최고 도달·해결 몬스터·되감기·정답·해결 단계·맞지 않는 도구·긴급 연성·튜토리얼(완료/건너뜀)·연성 성공/실패·플레이 시간(분)을 `DS.REPORT_URL`로 POST. 주소가 비었거나 전송이 실패하면 결과 코드만 보여 준다. 설정 방법은 [beta-report.md](beta-report.md).
 - **연성창:** 모루와 연성 버튼을 화면 위에 고정(`.anvil-dock`), 방금 만든 카드 강조, 폰·패드 글씨 확대.
 
+### GitHub Pages + 앱 설치 (v0.3)
+
+- `https://garzondesne-dot.github.io/DIMENSION-SLASHER/` 로 배포하고 크롬에서 앱으로 설치 ([deploy-github-pages.md](deploy-github-pages.md)). 무료 계정은 저장소를 공개해야 Pages를 켤 수 있다.
+- 서비스 워커는 https·localhost에서만 등록(파일로 열거나 Apps Script 안에서는 등록 안 함). 게임 파일은 네트워크 우선 → 오프라인이면 저장본, 글꼴은 저장본 우선.
+- 결과 보내기는 `DS.REPORT_URL`(Apps Script `doPost`)로 그대로 보낸다. Apps Script 웹 앱 배포도 계속 쓸 수 있다.
+
 ### 3층·4층 (v0.3, 교과서 23~41쪽)
 
 | 층 | 몬스터 | 문제 (출처) | 단계 → 도구 | 정답 |
@@ -251,6 +257,7 @@
 | `js/report.js` | 학생 등록, 결과 보내기 (베타 테스트) |
 | `js/titlebg.js` | 타이틀 배경 애니메이션 |
 | `deploy/apps-script/Code.gs` | Apps Script 배포: 드라이브의 게임 파일을 보여 줌(doGet) + 결과 시트 기록(saveResult, doPost) |
+| `manifest.webmanifest`, `sw.js`, `icons/`, `js/pwa.js` | 앱 설치(PWA): 매니페스트, 서비스 워커(오프라인·네트워크 우선), 아이콘, [앱으로 설치] 버튼 |
 | `tools/bundle.py` | 배포용 단독 HTML 만들기 (게임 실행에는 필요 없음) |
 | `js/forge.js` | 캠프 대장간(묶음 보관함) · 덱 구성 · 첫 연성 튜토리얼 · 조합법 창(꺼 둠) |
 | `js/quiz.js` | 4지선다 창과 문제 그림 |
