@@ -126,7 +126,7 @@ h3 { margin: 22px 0 8px; font-size: 16px; color: var(--gold); }
 }
 .part.empty { opacity: 0.3; cursor: default; }
 .part.in-slot { border: none; background: none; padding: 0; min-width: 0; cursor: pointer; }
-.psym { display: block; font-size: 17px; color: var(--gold); white-space: nowrap; }
+.psym { display: block; font-size: 20px; color: var(--gold); white-space: nowrap; }
 .pname { display: block; font-size: 12px; color: var(--muted); }
 .pcount { position: absolute; top: -8px; right: -6px; background: var(--gold); color: #1a1206; font-size: 11px; padding: 0 4px; }
 .drag-ghost { position: fixed; z-index: 100; pointer-events: none; transform: translate(-50%, -50%) scale(1.12); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); }
@@ -210,7 +210,7 @@ h3 { margin: 22px 0 8px; font-size: 16px; color: var(--gold); }
   background: var(--gold); color: #1a1206; font-weight: bold; border: 2px solid #000;
 }
 .card .cname { font-size: 14px; font-weight: bold; }
-.card .formula { font-size: 13px; color: #ffe7a8; background: rgba(0, 0, 0, 0.35); padding: 3px 6px; width: 100%; }
+.card .formula { font-size: 14px; color: #ffe7a8; background: rgba(0, 0, 0, 0.35); padding: 3px 6px; width: 100%; }
 .card .cdesc { font-size: 12px; color: #cfcbe6; }
 .card .tag { margin-top: auto; font-size: 11px; color: var(--gold); border: 1px solid; padding: 0 5px; }
 
@@ -284,7 +284,7 @@ h3 { margin: 22px 0 8px; font-size: 16px; color: var(--gold); }
 .part.mid { border-style: dashed; border-color: var(--teal); }
 .part.in-slot { border: none; }
 .slot { position: relative; flex-direction: column; }
-.slot .psym { white-space: normal; font-size: 14px; text-align: center; }
+.slot .psym { white-space: normal; font-size: 16px; text-align: center; }
 .slot .flip { margin-top: 4px; font-family: var(--pixel); font-size: 11px; color: #0b0912; background: var(--teal); border: none; padding: 2px 6px; cursor: pointer; }
 
 /* 문제 패널 */
@@ -469,13 +469,13 @@ h3 { margin: 22px 0 8px; font-size: 16px; color: var(--gold); }
 /* ── v0.2.1.1: 폰·패드 글씨 크기 ─────────── */
 @media (max-width: 820px) {
   .card .cname { font-size: 16px; }
-  .card .formula { font-size: 14px; }
+  .card .formula { font-size: 15px; }
   .card .stats { font-size: 15px; }
   .card .tags > span { font-size: 11px; line-height: 16px; }
   .card.mini .cname { font-size: 14px; }
   .card.mini .formula { font-size: 13px; }
   .card.mini .stats { font-size: 14px; }
-  .psym { font-size: 19px; }
+  .psym { font-size: 21px; }
   .pname { font-size: 13px; }
   .howto { font-size: 14px; }
 }
