@@ -205,8 +205,9 @@ DS.Battle = (function () {
     $('#e-name').textContent = def.name;
     $('#e-hpfill').style.width = (100 * e.hp) / e.max + '%';
     $('#e-hptext').textContent = `${e.hp} / ${e.max}`;
-    $('#e-gates').innerHTML = B.gates.map((g, i) => (i < B.stepIdx || g <= 0 || cheat() ? ''
-      : `<i class="gate${i === B.stepIdx ? ' cur' : ''}" style="left:${(100 * g) / e.max}%"></i>`)).join('');
+    // 문턱 표시는 치트 모드에서도 남긴다 (치트는 막는 힘만 끈다: 흐리게 보이고 통과)
+    $('#e-gates').innerHTML = B.gates.map((g, i) => (i < B.stepIdx || g <= 0 ? ''
+      : `<i class="gate${i === B.stepIdx ? ' cur' : ''}${cheat() ? ' ghost' : ''}" style="left:${(100 * g) / e.max}%"></i>`)).join('');
     $('#e-status').innerHTML = statusChips();
     const it = def.intents[e.intent % def.intents.length];
     const v = enemyDamage(it);
