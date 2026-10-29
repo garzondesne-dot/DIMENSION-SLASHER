@@ -668,3 +668,5 @@ h3.shelf-title { margin: 10px 0 6px; font-size: 14px; }
 .shoulder .hero-back { display: block; position: absolute; left: 2%; bottom: 0; width: 22%; height: auto; image-rendering: pixelated; pointer-events: none; }
 
 .gate.ghost { background: transparent; box-shadow: none; border-left: 2px dashed #ffd166; width: 0; opacity: 0.7; }
+
+.vib-state { font-size: 12px; color: var(--muted); margin: 8px 0 0; }

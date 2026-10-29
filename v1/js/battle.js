@@ -295,12 +295,13 @@ DS.Battle = (function () {
       const prob = step.challenge();
       const ok = await DS.Challenge.resolve(def, prob);
       if (hooks.onAnswer) hooks.onAnswer(ok);
-      if (ok) await solveStep(card, step);
-      else { scene.fizzle(); await wait(400); }
+      if (ok) { vib([30, 30, 90]); await solveStep(card, step); }
+      else { vib([150]); scene.fizzle(); await wait(400); }
     } else if (gate) {
       // 맞지 않는 카드: 공격은 튕기고 방어·스캔은 적용
       scene.wrongTool();
       DS.Sound.wrong();
+      vib([120, 60, 120]);
       toast(def.tool ? `이 도구로는 지금 단계를 풀 수 없어요. 목표: ${step.goal}`
         : '결계 보호막! 공격은 튕겨 나간다. 이 단계를 푸는 풀이 카드가 필요하다.', 2600);
       if (hooks.onWrongTool && def.tool) hooks.onWrongTool();
