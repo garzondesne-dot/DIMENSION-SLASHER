@@ -111,6 +111,27 @@ for (let i = 0; i < N; i++) {
   }
 }
 
+// 완전제곱 (v0.3.2): 무작위 짝수 A, B 와 상수 C → 정답 식을 전개해 원래 식과 같은지 점을 찍어 독립 검산,
+// 상수를 빠뜨린 함정(r² = a² + b²)이 보기에 있고, 상수가 있으면 "오른쪽으로" 힌트가 붙는다
+for (let t = 0; t < N; t++) {
+  const A = 2 * G.ri(-5, 5), B = 2 * G.ri(-5, 5), C = G.ri(-9, 9);
+  if (A * A / 4 + B * B / 4 - C <= 0) continue;
+  const p = G.gen.completeSquare({ A, B, C });
+  check(p.choices.length === 4 && new Set(p.choices).size === 4 && p.choices[p.answerIndex] === p.answer, 'completeSquare 보기', p);
+  const m = p.answer.replace(/−/g, '-').replace(/\s+/g, '').match(/^(?:x²|\(x([+-]\d+)\)²)\+(?:y²|\(y([+-]\d+)\)²)=(\d+)$/);
+  check(!!m, 'completeSquare 형식', p);
+  if (!m) continue;
+  const u = m[1] ? Number(m[1]) : 0, v = m[2] ? Number(m[2]) : 0, r2 = Number(m[3]);
+  for (const [x, y] of [[0, 0], [1, -2], [3, 5], [-4, 7]]) {
+    check(near((x + u) ** 2 + (y + v) ** 2 - r2, x * x + y * y + A * x + B * y + C), 'completeSquare 전개 = 원래 식', p);
+  }
+  const trap = r2 + C; // a² + b²
+  if (C) {
+    check(p.choices.some((c) => c.endsWith(`= ${trap}`)), 'completeSquare 상수 빠뜨린 함정 보기', p);
+    check(/오른쪽으로/.test(p.question), 'completeSquare 상수 힌트', p);
+  }
+}
+
 // 교과서 예시와 같은 값을 내는지 확인 (형식 검사)
 const F = G.frac;
 check(G.sqrtStr(100) === '10', 'sqrt 100', {});
@@ -124,4 +145,4 @@ if (failures) {
   console.error(`\n${failures}건 실패`);
   process.exit(1);
 }
-console.log(`OK: 생성기 7종 × ${N}회 검증 통과`);
+console.log(`OK: 생성기 7종 + 완전제곱 × ${N}회 검증 통과`);

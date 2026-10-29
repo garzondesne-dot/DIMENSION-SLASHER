@@ -27,19 +27,24 @@ const tok = (k) => {
 };
 
 // ── 1. 연성 나무 ──────────────────────────────────────────
-// 캠프에서 받는 부품(점 x₁·x₂, 한 점, 무한 m′, 3층의 원 단원 부품)에서 규칙을 반복 적용해 도달 가능한 결과
-const have = new Set(['part:x1', 'part:x2', 'part:pt1', 'part:mPrime', 'part:radius', 'part:lineGen', 'part:normLen', 'part:genCircle', 'part:halfSq']);
-for (let round = 0; round < 8; round++) {
+// 캠프에서 받는 부품·카드(점 x₁·x₂, 한 점, 무한 m′·영의 결정, 3층의 원 단원 부품과 원 (일반형) 카드)에서 규칙을 반복 적용해 도달 가능한 결과
+const have = new Set(['part:x1', 'part:x2', 'part:pt1', 'part:mPrime', 'part:zero', 'part:radius', 'part:coefSq', 'card:genCircle']);
+for (const n of Progress.nodes) {
+  for (const id of Object.keys(n.parts || {})) check(have.has(`part:${id}`), `지급 부품이 시작 재료 목록에 있음: ${id}`);
+  for (const id of Object.keys(n.cards || {})) check(Cards[id] && Cards[id].grant && have.has(`card:${id}`), `지급 카드: ${id}`);
+}
+for (let round = 0; round < 10; round++) {
   for (const r of Craft.RULES) {
     if (r.in.every((k) => have.has(k))) {
+      if (r.out.kind === 'parts') { r.out.ids.forEach((id) => have.add(`part:${id}`)); continue; }
       const out = `${r.out.kind}:${r.out.id}`;
       have.add(out);
-      if (Cards[r.out.id] && Cards[r.out.id].axis) { have.add(`${out}@x`); have.add(`${out}@y`); } // ⇄ 축 바꾸기
+      if (Cards[r.out.id] && Cards[r.out.id].axis) { have.add(`${out}@x`); have.add(`${out}@y`); } // ⇄ 뒤집기
     }
   }
 }
 for (const [id, c] of Object.entries(Cards)) {
-  if (['basic', 'normal', 'magic', 'rare'].includes(c.tier) && id !== 'dPlusR') {
+  if (['basic', 'normal', 'magic', 'rare'].includes(c.tier) && id !== 'dPlusR' && !c.grant) {
     if (['circle', 'ptLine'].includes(id) || c.tier !== 'rare') check(have.has(`card:${id}`), `연성 불가능한 카드: ${id}`);
   }
 }
@@ -67,6 +72,62 @@ for (const b of Craft.BOOK) {
   for (const id of Object.keys(b.quick.parts || {})) check(Parts[id] && !Parts[id].inf, `즉시 연성 부품: ${id}`);
   for (const id of Object.keys(b.quick.cards || {})) check(Cards[id], `즉시 연성 카드: ${id}`);
   for (const e of b.emergency) for (const id of Object.keys(e)) check(Cards[id], `긴급 연성 재료는 카드여야 함: ${id}`);
+}
+for (const id of Object.keys(Cards)) check(!Cards[id].grant || !Craft.book(id), `받는 카드는 도감에 없음: ${id}`);
+
+// ── v0.3.2 연성 개편 ──────────────────────────────────────
+const ALL = { unlocked: new Set(['sq', 'root']) }, NONE = { unlocked: new Set() }, SQ = { unlocked: new Set(['sq']) };
+// ² 발견형: 잠겨 있으면 안 되고, 같은 것끼리 × 로는 차이² 를 만들며 발견 신호(sqTry)가 붙는다
+check(!Craft.match('sq', tok('card:diff@x'), null, NONE).ok && /발견/.test(Craft.match('sq', tok('card:diff@x'), null, NONE).msg), '² 잠김');
+check(Craft.match('sq', tok('card:diff@x'), null, SQ).ok, '² 발견 후 사용');
+{
+  const r1 = Craft.match('times', tok('card:diff@x'), tok('card:diff@x'), NONE);
+  check(r1.ok && r1.out.id === 'diffSq' && r1.out.axis === 'x' && r1.sqTry, '차이 × 차이 = 차이² + ² 발견');
+  const r2 = Craft.match('times', tok('card:diff@y'), tok('card:diff@y'), NONE);
+  check(r2.ok && r2.out.axis === 'y' && r2.sqTry, '세로 차이 × 세로 차이 = 세로 차이²');
+  check(Craft.match('times', tok('card:segLen@x'), tok('card:segLen@x'), NONE).out.id === 'diffSq', '선분 × 선분 = 차이²');
+  const r3 = Craft.match('times', tok('card:diff@x'), tok('card:diff@y'), NONE);
+  check(!r3.ok && !r3.sqTry && /넓이/.test(r3.msg), '가로 × 세로 = 넓이 (발견 아님)');
+  const r4 = Craft.match('times', tok('part:x1'), tok('part:x1'), NONE);
+  check(!r4.ok && r4.sqTry, '레시피에 없어도 같은 것끼리 × 는 ² 발견');
+  check(!Craft.match('times', tok('part:x1'), tok('part:x2'), NONE).sqTry, '다른 것끼리 × 는 발견 아님');
+}
+// √ 발견형 + 제곱의 합 안내 (√ 를 못 찾았으면 꺼내기 안내, 찾았으면 √ 를 씌우라는 안내)
+check(!Craft.match('root', tok('part:sumSq'), null, SQ).ok, '√ 잠김');
+check(Craft.match('root', tok('part:sumSq'), null, ALL).out.id === 'dist', '√ 발견 후 거리');
+check(/꺼내/.test(Craft.match('eq', tok('part:sumSq'), tok('part:radius'), SQ).msg), '제곱의 합 안내 (√ 잠김)');
+check(/√를 씌워야/.test(Craft.match('eq', tok('part:sumSq'), tok('part:radius'), ALL).msg), '제곱의 합 안내 (√ 발견)');
+check(/꺼내/.test(Craft.partNote('sumSq', SQ)) && Craft.partNote('sumSq', ALL) === '', '제곱의 합 완성 안내');
+check(Ops.sq.discover && Ops.root.discover && !Ops.times.discover, '발견형 연산은 ²·√ 만');
+// 점과 직선 사이의 거리: ⇄ 일반형 뒤집기, a² + b² 에 직접 √, 이 레시피에는 √ 힌트 없음
+check(K.formula({ id: 'line', axis: 'y' }) === 'ax + by + c = 0' && K.axisLabel({ id: 'line', axis: 'y' }) === '일반형', '직선의 방정식 ⇄ 일반형');
+check(K.formula({ id: 'diff', axis: 'y' }) === 'y₂ − y₁' && K.axisLabel({ id: 'diff', axis: 'x' }) === '가로', '차이 카드 ⇄ 세로 그대로');
+check(Craft.match('subst', tok('card:line@y'), tok('part:pt1')).out.id === 'plug', '일반형 직선 ↦ 한 점');
+check(/일반형/.test(Craft.match('subst', tok('card:line@x'), tok('part:pt1')).msg), '표준형이면 먼저 뒤집기 안내');
+check(Craft.match('root', tok('part:coefSq')).out.id === 'normLen', 'a² + b² 에 √ → 계수 길이');
+check(!/√/.test(Craft.match('div', tok('part:absPlug'), tok('part:coefSq')).msg), '점과 직선 거리: √ 힌트 없음');
+check(Cards.ptLine.score === 7 + 8 * 2, '점과 직선 거리 투자 점수 23 = 소재 7 + 연성 8번 × 2');
+check(!Parts.lineGen && !Parts.halfSq && !Parts.genCircle && !Cards.completeSq, '옛 부품·완전제곱 카드 삭제');
+// 원의 방정식 둘째 길: 식 분해 → 영의 결정 → 합치기
+{
+  const sp = Craft.match('split', tok('card:genCircle'));
+  check(sp.ok && sp.out.kind === 'parts' && sp.out.ids.join() === 'xPart,yPart', '식 분해 → x 조각 + y 조각');
+  check(Craft.match('plus', tok('part:xPart'), tok('part:zero')).out.id === 'xSq' && Craft.match('plus', tok('part:zero'), tok('part:yPart')).out.id === 'ySq', '조각 + 0 → 완전제곱');
+  check(Craft.match('plus', tok('part:xSq'), tok('part:ySq')).out.id === 'circle', '두 완전제곱 합치기 → 원의 방정식');
+  check(/아직 둘 다/.test(Craft.match('plus', tok('part:xPart'), tok('part:yPart')).msg), '분해 직후 합치기 안내');
+  check(/영\(零\)/.test(Craft.match('sq', tok('part:xPart')).msg), '0 없이 연성 안내');
+  check(/짝/.test(Craft.match('plus', tok('part:zero'), tok('part:x1')).msg), '0 혼자 안내');
+  check(/이미/.test(Craft.match('plus', tok('part:xSq'), tok('part:xSq')).msg), '같은 쪽 두 번 안내');
+  check(Parts.zero.inf && Parts.zero.floor === 3 && Ops.split.floor === 3, '영의 결정 무한·식 분해 3층부터');
+  check(/a = −3/.test(Craft.book('circle').lore), '부호 안내 (a = −3)');
+  check(Craft.book('circle').alt && /반지름/.test(Craft.book('circle').alt.chain), '원의 방정식 길 2개');
+}
+// 독립 검산: x² − 2ax = (x − a)² − a² 이고, 두 조각을 합치면 (x − a)² + (y − b)² = a² + b² (r² = a² + b²)
+for (let t = 0; t < 2000; t++) {
+  const a = Math.floor(Math.random() * 21) - 10, b = Math.floor(Math.random() * 21) - 10;
+  const x = Math.random() * 20 - 10, y = Math.random() * 20 - 10;
+  check(near(x * x - 2 * a * x, (x - a) ** 2 - a * a), `x 완전제곱 a=${a}`);
+  check(near(x * x + y * y - 2 * a * x - 2 * b * y, (x - a) ** 2 + (y - b) ** 2 - (a * a + b * b)), `원 일반형 = 표준형 a=${a} b=${b}`);
 }
 // 긴급 연성은 손패(카드)만: 부품이 필요한 내분점·직선의 방정식·차이는 불가
 for (const id of ['divide', 'line', 'diff']) check(Craft.book(id).emergency.length === 0, `긴급 연성 불가여야 함: ${id}`);
@@ -172,6 +233,9 @@ for (let t = 0; t < 3000; t++) { // 수선 거미: 무작위 점과 직선, 정�
     check(near((x + 3) ** 2 + (y - 2) ** 2 - 16, x * x + y * y + 6 * x - 4 * y - 3), '가면 원령 완전제곱 전개');
   }
   check(st('mask', 0) === '(x + 3)² + (y − 2)² = 16' && st('mask', 1) === '중심 (−3, 2), 반지름 4', '가면 원령 정답');
+  // 가면 원령 ①: 도구는 원의 방정식, 상수 −3 을 빠뜨린 함정 (= 13 = 9 + 4) 이 보기에 있고 힌트가 붙음
+  const mq = Monsters.mask.makeProblem().steps[0];
+  check(mq.tool === 'circle' && mq.challenge().choices.includes('(x + 3)² + (y − 2)² = 13') && /−3 도 오른쪽/.test(mq.challenge().question), '가면 원령 ① 도구·함정·힌트');
   // 고리 정령: 중심 = A(2, 8), B(10, 2)의 중점, 반지름 = CA, A·B가 원 위에 있음
   const C = [(2 + 10) / 2, (8 + 2) / 2], r = Math.hypot(2 - C[0], 8 - C[1]);
   check(C[0] === 6 && C[1] === 5 && r === 5, '고리 정령 중심·반지름');
@@ -210,14 +274,17 @@ for (const n of Progress.nodes.filter((x) => x.type === 'battle')) {
 // 조합법 창(베타)의 안내가 실제 연성 규칙과 맞는지: 각 단계를 그대로 모루에 올려 결과를 확인
 for (const r of Craft.BOOK) {
   check(Array.isArray(r.guide) && r.guide.length, `조합법 안내 있음: ${r.card}`);
-  let last = null;
-  for (const [a, op, b, out] of r.guide) {
-    const res = Craft.match(op, a && tok(a), b && tok(b));
-    const got = res.ok ? `${res.out.kind}:${res.out.id}${res.out.axis ? '@' + res.out.axis : ''}` : res.msg;
-    check(got === out, `조합법 안내 ${r.card}: ${a} ${op} ${b} → ${got} (기대 ${out})`);
-    last = out;
+  for (const guide of [r.guide, ...(r.alt ? [r.alt.guide] : [])]) {
+    let last = null;
+    for (const [a, op, b, out] of guide) {
+      const res = Craft.match(op, a && tok(a), b && tok(b));
+      const got = !res.ok ? res.msg : res.out.kind === 'parts' ? `parts:${res.out.ids.join(',')}`
+        : `${res.out.kind}:${res.out.id}${res.out.axis ? '@' + res.out.axis : ''}`;
+      check(got === out, `조합법 안내 ${r.card}: ${a} ${op} ${b} → ${got} (기대 ${out})`);
+      last = out;
+    }
+    check(last && last.startsWith(`card:${r.card}`), `조합법 안내 마지막 결과: ${r.card}`);
   }
-  check(last && last.startsWith(`card:${r.card}`), `조합법 안내 마지막 결과: ${r.card}`);
 }
 // 점 부품 하나만으로는 차이가 안 됨 (두 점 필요)
 check(!Craft.match('minus', tok('part:x1'), null).ok, '점 한 개로는 빼기 불가');
@@ -277,6 +344,37 @@ for (let t = 0; t < 300; t++) {
   check(Save.unpack({ ...JSON.parse(json), ver: Save.VER + 1 }) === null, '다른 버전 저장 거부');
   check(json.length < 20000, `세이브 크기 ${json.length}바이트`);
   check(Save.unpack(JSON.parse(JSON.stringify(Save.pack({ ...G0, tutorial: 'skipped' })))).tutorial === 'skipped', '세이브 튜토리얼 기록');
+  // 발견한 연산은 저장되고 되감기·이어하기 후에도 유지
+  const G2 = Save.unpack(JSON.parse(JSON.stringify(Save.pack({ ...G0, unlocked: new Set(['sq']) }))));
+  check(G2.unlocked.has('sq') && !G2.unlocked.has('root'), '세이브 발견 연산');
+}
+// v0.3.2 이전 저장 옮기기: 완전제곱 카드 → 원 (일반형) 카드, 옛 부품 정리, 골렘을 지난 저장은 ²·√ 해금
+{
+  const golem = Progress.nodes.findIndex((n) => n.monster === 'golem');
+  const old = (maxNode, extra = {}) => ({
+    ver: Save.VER, node: maxNode, maxNode, loop: 1, discovered: ['diff', 'completeSq'], mastery: { completeSq: 2 }, granted: [], params: {}, stats: {},
+    cards: [{ ...K.roll('diff'), uid: 'a' }, { ...K.roll('dist'), id: 'completeSq', uid: 'b' }], deckUids: ['a', 'b'],
+    bag: { genCircle: 1, halfSq: 2, lineGen: 3, normLen: 3, x1: 1 }, ...extra,
+  });
+  const g = Save.unpack(old(9));
+  check(!g.cards.some((c) => c.id === 'completeSq') && g.cards.filter((c) => c.id === 'genCircle').length === 2, '옛 저장: 완전제곱 카드 → 원 (일반형) 카드');
+  check([...g.deckUids].join() === 'a' && !g.discovered.has('completeSq') && g.mastery.completeSq === undefined, '옛 저장: 덱·도감·숙련 정리');
+  check(g.bag.coefSq === 3 && g.bag.genCircle === undefined && g.bag.halfSq === undefined && g.bag.lineGen === undefined && g.bag.normLen === undefined && g.bag.x1 === 1, '옛 저장: 부품 정리');
+  check(g.unlocked.has('sq') && g.unlocked.has('root'), '옛 저장(골렘 지남): ²·√ 해금');
+  check(Save.unpack(old(golem - 1)).unlocked.size === 0, '옛 저장(골렘 전): 발견형 그대로');
+  check(Save.unpack(old(9, { unlocked: ['sq'] })).unlocked.size === 1, '새 저장의 발견 기록은 그대로');
+}
+// 1층 부담 분산: 첫 캠프(튜토리얼) → 슬라임 보상 nudge → 골렘 직전 캠프 안내 → 골렘 입장 √ · 2층 입장 ² 자동 해금
+{
+  const N = Progress.nodes, at = (m) => N.findIndex((n) => n.monster === m);
+  check(N[at('slime')].nudge === 'sq' && N[at('slime') + 1].type === 'camp' && N[at('slime') + 1].guide, '슬라임 보상 nudge, 골렘 직전 캠프 안내');
+  check(N[at('golem')].autoOps.includes('root'), '골렘 입장 √ 자동 해금');
+  const c2 = N.findIndex((n) => n.type === 'camp' && n.floor === 2);
+  check(N[c2].autoOps.includes('sq') && N[c2].autoOps.includes('root'), '2층 입장 ² 자동 해금');
+  // 골렘 ② 단계 도구(두 점 사이의 거리)는 √ 가 필요하다 → √ 자동 해금이 골렘 입장보다 늦으면 안 됨
+  check(Monsters.golem.makeProblem().steps.some((s2) => s2.tool === 'dist'), '골렘은 두 점 사이의 거리 필요');
+  const c3 = N.find((n) => n.type === 'camp' && n.floor === 3);
+  check(c3.cards.genCircle === 2 && c3.parts.coefSq >= 1, '3층 캠프: 원 (일반형) 카드 2장, 계수 제곱합');
 }
 
 // ── 앱 설치(PWA): 서비스 워커가 저장할 파일 목록이 index.html 의 스크립트와 같은지, 캐시 이름이 버전과 같은지

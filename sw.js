@@ -3,7 +3,7 @@
 //  - 글꼴(CDN): 저장해 둔 것 먼저 → 없으면 받아서 저장
 //  - 결과 보내기(POST)는 건드리지 않는다
 // 새 버전을 낼 때 CACHE 이름을 DS.VERSION 과 맞춘다 (tests/game.test.js 가 확인)
-const CACHE = 'ds-v0.3.1';
+const CACHE = 'ds-v0.3.2';
 const CORE = [
   './', './index.html', './css/style.css', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png',

@@ -285,6 +285,9 @@ h3 { margin: 22px 0 8px; font-size: 16px; color: var(--gold); }
 .part.in-slot { border: none; }
 .slot { position: relative; flex-direction: column; }
 .slot .psym { white-space: normal; font-size: 16px; text-align: center; }
+/* 긴 부품 식(x² − 2ax 등)은 칸 안에 들어가게 작게 · 짝을 만나 변신한 영(零)의 결정 */
+.psym.long { font-size: 15px !important; }
+.zero-on { border-color: #7df9ff; box-shadow: 0 0 12px rgba(125, 249, 255, 0.5); }
 .slot .flip { margin-top: 4px; font-family: var(--pixel); font-size: 11px; color: #0b0912; background: var(--teal); border: none; padding: 2px 6px; cursor: pointer; }
 
 /* 문제 패널 */

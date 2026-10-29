@@ -223,7 +223,7 @@ DS.Monsters = (function () {
         },
         steps: [
           {
-            goal: '완전제곱식으로 가면을 벗겨라', tool: 'completeSq', needs: 2,
+            goal: '완전제곱식으로 가면을 벗겨라', tool: 'circle', needs: 2,
             challenge: () => G.gen.completeSquare({ A: 6, B: -4, C: -3 }),
             dmg: 10, penalty: { atkDown: 2, label: '가면 균열! 공격 −2' },
             fx: { ring: [-3, 2], ringR: 4 },

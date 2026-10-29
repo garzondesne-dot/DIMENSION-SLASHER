@@ -32,6 +32,7 @@ window.DS = window.DS || {};
       bag: {},
       discovered: new Set(['diff']),
       mastery: {},
+      unlocked: new Set(), // 발견한 연산 (², √)
       granted: new Set(), // 부품을 이미 받은 노드
       problems: {}, // 노드별 문제 (되감기·후퇴 후에도 같은 문제)
       stats: newStats(),
@@ -58,6 +59,18 @@ window.DS = window.DS || {};
     Object.entries(parts || {}).forEach(([k, v]) => { G.bag[k] = (G.bag[k] || 0) + v; });
   }
   const nodes = DS.Progress.nodes;
+  // 아직 못 찾은 연산을 자동 해금 (벌 없음): 골렘 입장 때 √, 2층 입장 때 ² (Promise)
+  async function autoUnlock(n) {
+    const miss = (n.autoOps || []).filter((op) => !G.unlocked.has(op));
+    if (!miss.length) return;
+    miss.forEach((op) => G.unlocked.add(op));
+    DS.Save.write(G);
+    const names = miss.map((op) => `${DS.Ops[op].sym} ${DS.Ops[op].name}`).join(', ');
+    await DS.Cinematic.choice(`🔓 ${names} 연산을 깨달았다!`,
+      (miss.includes('root') ? '√ 는 제곱을 되돌린다: 3² = 9 이니까 √9 = 3. ' : '')
+      + (miss.includes('sq') ? '² 는 같은 것을 두 번 곱하는 것: 3 × 3 = 3². ' : '')
+      + '이제 대장간에서 바로 쓸 수 있다.', ['좋아!']);
+  }
 
   function goto(i) {
     G.node = i;
@@ -71,13 +84,20 @@ window.DS = window.DS || {};
 
   // 캠프에는 다음 상대·문제를 보여 주지 않는다 (조우해야 알 수 있음). 층의 단원 범위만 표시.
   function enterCamp(n, i) {
-    if (!G.granted.has(i)) { addParts(n.parts); G.granted.add(i); }
+    if (!G.granted.has(i)) {
+      addParts(n.parts);
+      // 받는 카드 (원 (일반형) 등): 보관함에만 넣는다 (재료용)
+      Object.entries(n.cards || {}).forEach(([id, k]) => { for (let j = 0; j < k; j++) G.cards.push(K.roll(id)); });
+      G.granted.add(i);
+    }
     DS.Save.write(G);
     const fl = DS.Progress.floors[n.floor];
     $('#camp-sub').textContent = fl.title;
     $('#camp-next').innerHTML = `<b>범위:</b> ${esc(fl.unit)} <span class="muted">· 문제는 조우해야 알 수 있다</span>`;
     DS.Forge.open({
       bag: G.bag, cards: G.cards, deckUids: G.deckUids, discovered: G.discovered, mastery: G.mastery, floor: n.floor,
+      unlocked: G.unlocked, guideOps: !!n.guide,
+      onUnlock: () => DS.Save.write(G),
       nextTitle: '다음 전투로 출발',
       onForge: (ok) => { if (ok) G.stats.forgeOK = (G.stats.forgeOK || 0) + 1; else G.stats.forgeFails = (G.stats.forgeFails || 0) + 1; },
       onGuide: () => { G.stats.guideViews = (G.stats.guideViews || 0) + 1; },
@@ -86,9 +106,11 @@ window.DS = window.DS || {};
       onDepart: () => goto(i + 1),
     });
     show('screen-camp');
+    autoUnlock(n).then(() => { if (n.autoOps) DS.Forge.refresh(); });
   }
 
-  function startBattle(n, i) {
+  async function startBattle(n, i) {
+    await autoUnlock(n);
     const def = DS.Monsters[n.monster];
     const problem = G.problems[i] || (G.problems[i] = def.makeProblem());
     DS.Save.write(G, i - 1); // 덱 구성·문제 숫자 저장. 전투 중에 닫으면 직전 캠프에서 이어 함
@@ -113,6 +135,9 @@ window.DS = window.DS || {};
   function afterWin(n, i) {
     const def = DS.Monsters[n.monster];
     if (n.reward) addParts(n.reward);
+    // ² 를 아직 못 찾았으면 차이(가로) 카드 2장 + 힌트 (1층 부담 분산)
+    const nudge = n.nudge === 'sq' && !G.unlocked.has('sq');
+    if (nudge) for (let j = 0; j < 2; j++) G.cards.push(K.roll('diff', 'x'));
     if (n.unlock) G.discovered.add(n.unlock); // 중간보스 보상: 각성 레시피 해금
     DS.Save.write(G, i + 1);
     const next = nodes[i + 1];
@@ -120,6 +145,7 @@ window.DS = window.DS || {};
     $('#reward-desc').textContent = n.unlock
       ? `각성 레시피 해금: ${DS.Cards[n.unlock].name} [d ± r]. 최종보스와의 결전에서 다시 깨어난다.`
       : n.reward ? '문제를 푼 자리에서 새로운 기억의 부품을 얻었다.' : '';
+    if (nudge) $('#reward-desc').textContent += ' 보너스: 차이 카드 2장. 💡 같은 차이 카드 두 장을 곱하기(×)로 모루에 올려 보면…?';
     $('#reward-parts').innerHTML = n.reward ? partChips(n.reward) : '';
     $('#reward-next').textContent = next.type === 'clear' ? '' : `다음: ${DS.Progress.floors[next.floor].title}`;
     $('#reward-go').textContent = next.type === 'clear' ? '결과 보기 ▶' : '캠프로 ▶';

@@ -424,16 +424,21 @@ DS.MathGen = (function () {
     const t = (k, v) => (k === 0 ? '' : ` ${k < 0 ? M : '+'} ${Math.abs(k) === 1 && v ? '' : Math.abs(k)}${v}`);
     return `x² + y²${t(A, 'x')}${t(B, 'y')}${t(C, '')} = 0`;
   };
+  // 원 (일반형) 카드에는 상수가 없으므로(r² = a² + b²), 상수 C 가 있으면 "C 도 오른쪽으로" 힌트를 붙인다 (v0.3.2)
   function completeSquare(ctx) {
     const { A, B, C } = ctx;
     const a = -A / 2, b = -B / 2, r2 = a * a + b * b - C;
     const ans = circleStr(a, b, r2);
+    const sgn = (v) => (v < 0 ? `${M} ${Math.abs(v)}` : `+ ${v}`);
+    const tip = C ? ` (💡 상수 ${C < 0 ? M : ''}${Math.abs(C)} 도 오른쪽으로 넘겨요)` : '';
     return finish({
       kind: 'completeSquare',
-      question: `방정식 ${genCircleStr(A, B, C)}을 완전제곱식 꼴로 바꾸면?`,
+      question: `방정식 ${genCircleStr(A, B, C)}을 완전제곱식 꼴로 바꾸면?${tip}`,
       answer: ans,
-      distractors: [circleStr(a, b, -C), circleStr(-a, -b, r2), circleStr(2 * a, 2 * b, r2), circleStr(a, b, a * a + b * b + C)],
-      solution: `x² ${A < 0 ? M : '+'} ${Math.abs(A)}x + ${a * a} + y² ${B < 0 ? M : '+'} ${Math.abs(B)}y + ${b * b} = ${-C} + ${a * a} + ${b * b}  →  ${ans}`,
+      // a² + b² 만 쓰고 상수를 빠뜨린 답, 부호를 거꾸로 한 답이 먼저 함정으로
+      distractors: [circleStr(a, b, a * a + b * b), circleStr(-a, -b, r2), circleStr(a, b, -C), circleStr(2 * a, 2 * b, r2), circleStr(a, b, a * a + b * b + C)],
+      solution: `${sgn(A)}x = −2a·x 에서 a = ${num(a)}, ${sgn(B)}y = −2b·y 에서 b = ${num(b)}. `
+        + `x² ${sgn(A)}x + ${a * a} + y² ${sgn(B)}y + ${b * b} = ${-C} + ${a * a} + ${b * b}  →  ${ans}`,
       diagram: null,
       params: ctx,
     }, () => circleStr(a, b, r2 + ri(1, 6)));

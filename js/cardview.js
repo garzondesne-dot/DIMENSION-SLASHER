@@ -8,7 +8,7 @@ DS.UI.cardInner = function (c, opt = {}) {
   const parts = [];
   if (opt.battle) parts.push('<span class="cost">1</span>');
   parts.push(`<span class="tier-badge">${DS.Tiers[d.tier].name}</span>`);
-  parts.push(`<span class="cname">${esc(d.name)}</span>`);
+  parts.push(`<span class="cname">${esc(d.name)}${d.axisName && c.axis === 'y' ? ` <small>(${esc(K.axisLabel(c))})</small>` : ''}</span>`);
   parts.push(`<span class="formula math">${pretty(K.formula(c))}</span>`);
   parts.push(`<span class="stats"><b class="atk">⚔${c.atk}</b><b class="def">🛡${c.def}</b></span>`);
   const tags = [];

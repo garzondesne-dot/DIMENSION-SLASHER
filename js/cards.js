@@ -45,8 +45,14 @@ DS.CardKit = (function () {
     };
   };
   const formula = (card) => {
-    const f = DS.Cards[card.id].formula;
-    return card.axis === 'y' ? f.replace(/x₂ − x₁/g, 'y₂ − y₁') : f;
+    const d = DS.Cards[card.id];
+    if (card.axis !== 'y') return d.formula;
+    return d.formulaY || d.formula.replace(/x₂ − x₁/g, 'y₂ − y₁');
+  };
+  // ⇄ 로 뒤집은 면의 이름 (차이 카드: 가로·세로, 직선의 방정식: 표준형·일반형)
+  const axisLabel = (card) => {
+    const d = DS.Cards[card.id];
+    return d.axisName ? d.axisName[card.axis === 'y' ? 1 : 0] : (card.axis === 'y' ? '세로' : '가로');
   };
   const isScan = (card) => !!card.scan;
   const isMagic = (card) => DS.Cards[card.id].tier === 'magic';
@@ -69,5 +75,5 @@ DS.CardKit = (function () {
     return { ok: rows.every((r) => r.ok), rows };
   }
 
-  return { roll, statRange, affix, critOf, formula, checkDeck, isScan, isMagic, isRare, uid };
+  return { roll, statRange, affix, critOf, formula, axisLabel, checkDeck, isScan, isMagic, isRare, uid };
 })();
