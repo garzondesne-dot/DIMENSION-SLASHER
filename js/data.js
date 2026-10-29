@@ -93,7 +93,7 @@ DS.Affixes = {
 DS.SCAN_CHANCE = 0.35; // 일반 카드에 스캔이 붙을 확률
 
 // ── 버전 · 베타 테스트 설정 ─────────────────────────────────
-DS.VERSION = 'v0.3';
+DS.VERSION = 'v0.3.1';
 DS.BETA = true; // 베타 테스트 표시(BETA 배지·안내). 정식판에서는 false
 DS.GUIDE = false; // 조합법 전체 공개 창 (v0.2.2에서 끔: 발견하는 재미 유지, 대신 첫 연성 튜토리얼)
 // 결과 보내기: 선생님 구글 시트에 연결한 Apps Script 웹 앱 주소 (GitHub Pages·앱 설치판·파일판이 여기로 POST).

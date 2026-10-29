@@ -14,6 +14,8 @@ DS.Battle = (function () {
   const { pretty, esc } = DS.UI;
   const K = DS.CardKit;
   const toast = (m, ms) => DS.UI.toast(m, ms);
+  // 진동 (v0.3.1): 폰에서 공격·방어·피격·풀이에 울림. 웹 진동을 지원하지 않는 기기(iPhone Safari 등)는 조용히 무시
+  const vib = (p) => { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* 무시 */ } };
 
   const HAND_SIZE = 5, MAX_ENERGY = 3, PLAYER_HP = 50, SAFETY_TURNS = 3;
   const CIRCLED = '①②③④⑤⑥⑦⑧';
@@ -245,11 +247,12 @@ DS.Battle = (function () {
       const prob = step.challenge();
       const ok = await DS.Challenge.resolve(def, prob);
       if (hooks.onAnswer) hooks.onAnswer(ok);
-      if (ok) await solveStep(card, step);
-      else { scene.fizzle(); await wait(400); }
+      if (ok) { vib([30, 30, 90]); await solveStep(card, step); }
+      else { vib([150]); scene.fizzle(); await wait(400); }
     } else if (gate) {
       // 맞지 않는 카드: 공격은 튕기고 방어·스캔은 적용
       scene.wrongTool();
+      vib([120, 60, 120]);
       DS.Sound.wrong();
       toast(def.tool ? `이 도구로는 지금 단계를 풀 수 없어요. 목표: ${step.goal}`
         : '결계 보호막! 공격은 튕겨 나간다. 이 단계를 푸는 풀이 카드가 필요하다.', 2600);
@@ -269,6 +272,7 @@ DS.Battle = (function () {
     if (card.def > 0) {
       B.player.block += card.def;
       DS.Sound.block();
+      vib(45);
       scene.heroGuard(card.def);
     }
     if (card.scan) await scan();
@@ -287,6 +291,7 @@ DS.Battle = (function () {
     if (card.atk > 0) {
       scene.heroStrike();
       DS.Sound.slash();
+      vib(25);
       await wait(140);
       // 약화: 카드 공격만 ×0.75 (풀이 피해는 그대로)
       await hitEnemy(B.player.weak ? Math.max(1, Math.round(card.atk * 0.75)) : card.atk, { card });
@@ -326,7 +331,7 @@ DS.Battle = (function () {
     if (e.hp - d < floor) { d = Math.max(0, e.hp - floor); locked = true; }
     e.hp -= d;
     DS.Sound.hit();
-    if (crit) DS.Sound.crit();
+    if (crit) { DS.Sound.crit(); vib([0, 30, 40, 70]); }
     scene.enemyHit(d, note || '', crit);
     if (absorbed) scene.blocked(absorbed);
     if (card) applyOnHit(card, d);
@@ -497,6 +502,7 @@ DS.Battle = (function () {
     dmg -= blocked;
     p.hp = Math.max(0, p.hp - dmg);
     DS.Sound.enemyAtk();
+    if (dmg > 0) vib([60, 40, 60]);
     scene.enemyAttack(dmg, blocked);
     if (dmg > 0) setTimeout(() => DS.Sound.hurt(), 120);
     e.intent++;
