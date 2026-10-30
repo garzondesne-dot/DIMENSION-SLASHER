@@ -12,6 +12,7 @@
 - **웹 배포 + 앱 설치:** GitHub Pages에서 열고 크롬에서 앱으로 설치 (오프라인 실행) — [docs/deploy-github-pages.md](docs/deploy-github-pages.md)
 - **결과 수집:** 구글 시트 + Apps Script 웹 앱(예전 주소는 새 주소 안내만 보여 줌) — [docs/deploy-apps-script.md](docs/deploy-apps-script.md)
 - **🧪 v1.0 테스트판 (`v1/`):** Ⅰ·Ⅱ·Ⅲ 전 단원 10층, 갈림길·보물상자·유물·조준·숄더뷰·치트 모드 — https://garzondesne-dot.github.io/DIMENSION-SLASHER/v1/ · [docs/v1-test.md](docs/v1-test.md) (테스트: `node v1/tests/mathgen.test.js`, `node v1/tests/game.test.js`)
+- **🧩 번외편 「포함의 결계」 (`sets/`):** 집합 사이의 포함 관계 50분 수업용 (11/3 공개수업) — https://garzondesne-dot.github.io/DIMENSION-SLASHER/sets/ · 교사용 해금 코드 `sets/teacher.html` · [docs/sets.md](docs/sets.md) (테스트: `node sets/tests/game.test.js`)
 - **세이브:** 캠페인은 캠프마다 자동 저장, 타이틀의 [이어하기]로 계속 (같은 PC·같은 브라우저)
 - PC: 문제 창에서 숫자 1~4로 선택, Enter로 계속, E로 턴 종료
 - 모바일: 터치로 플레이, 대장간 재료와 연산은 끌어다 놓거나 탭해서 배치

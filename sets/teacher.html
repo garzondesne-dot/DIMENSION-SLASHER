@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>포함의 결계 · 교사용 해금 코드</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="../icons/icon-192.png">
+  <style>
+    :root { --bg: #0b0a12; --panel: #151320; --line: #2f2a47; --text: #ece9f7; --muted: #9a95c0; --gold: #e8b04a; --teal: #2ec4b6; --violet: #a77bff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', system-ui, sans-serif; padding: 16px; }
+    h1 { margin: 0 0 4px; font-size: 22px; color: var(--teal); }
+    .sub { color: var(--muted); margin: 0 0 12px; font-size: 14px; }
+    .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+    input[type=date] { font-size: 16px; padding: 6px; background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+    button { font-size: 15px; padding: 7px 12px; background: var(--panel); color: var(--text); border: 1px solid var(--gold); cursor: pointer; }
+    table { width: 100%; max-width: 640px; border-collapse: collapse; }
+    td { border-bottom: 1px solid var(--line); padding: 10px 6px; font-size: 16px; }
+    td.code { font-family: 'Galmuri11', monospace; font-size: 38px; color: var(--gold); letter-spacing: 6px; text-align: right; width: 150px; }
+    tr.solve td.code { color: var(--violet); }
+    tr.field td { background: #101a1c; }
+    tr.done td { opacity: 0.35; }
+    .big { position: fixed; inset: 0; background: rgba(5, 4, 10, 0.95); display: none; align-items: center; justify-content: center; flex-direction: column; cursor: pointer; }
+    .big.on { display: flex; }
+    .big b { font-size: 26vw; color: var(--gold); font-family: 'Galmuri11', monospace; letter-spacing: 3vw; line-height: 1; }
+    .big p { font-size: 4vw; color: var(--text); margin: 8px; }
+    .note { color: var(--muted); font-size: 13px; max-width: 640px; }
+    @media print { body { background: #fff; color: #000; } td.code, tr.solve td.code { color: #000; } .bar, .note { display: none; } }
+  </style>
+</head>
+<body>
+  <h1>🔑 포함의 결계 · 오늘의 해금 코드</h1>
+  <p class="sub">학생 화면에 보이지 않는 교사용 페이지입니다. 코드는 날짜마다 바뀝니다. 줄을 누르면 크게 띄울 수 있어요(칠판·TV 화면용). 다시 누르면 지운 줄로 표시됩니다.</p>
+  <div class="bar">
+    <label>날짜 <input id="day" type="date"></label>
+    <button id="today">오늘</button>
+    <button onclick="window.print()">🖨 인쇄</button>
+  </div>
+  <table id="codes"></table>
+  <p class="note">· 문제풀이모드 코드는 칠판에 쓰지 말고 학생 폰의 ⚙ 설정 → 교사 코드에 직접 넣어 주세요 (모든 카드 + 체력 1 아래로 안 떨어짐, 자물쇠는 그대로).<br>· 어제 날짜 코드도 통과합니다 (자정을 넘는 경우 대비).</p>
+  <div id="big" class="big"><b></b><p></p></div>
+  <script src="js/codes.js"></script>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const done = new Set();
+    function draw() {
+      const d = $('#day').value;
+      $('#codes').innerHTML = DS.Codes.LOCKS.map((l) => `<tr data-k="${l.key}" class="${l.key === 'solve' ? 'solve' : l.key === 'p3' ? 'field' : ''}${done.has(l.key) ? ' done' : ''}"><td>${l.label}</td><td class="code">${DS.Codes.code(l.key, d)}</td></tr>`).join('');
+      document.querySelectorAll('#codes tr').forEach((tr) => tr.addEventListener('click', () => {
+        const k = tr.dataset.k;
+        if (k === 'solve') { alert('문제풀이모드 코드는 학생 폰에 직접 입력해 주세요: ' + DS.Codes.code(k, d)); return; }
+        if (done.has(k)) { done.delete(k); draw(); return; }
+        $('#big b').textContent = DS.Codes.code(k, d);
+        $('#big p').textContent = tr.cells[0].textContent;
+        $('#big').classList.add('on');
+        done.add(k);
+      }));
+    }
+    $('#big').addEventListener('click', () => { $('#big').classList.remove('on'); draw(); });
+    $('#day').value = DS.Codes.day();
+    $('#day').addEventListener('change', () => { done.clear(); draw(); });
+    $('#today').addEventListener('click', () => { $('#day').value = DS.Codes.day(); done.clear(); draw(); });
+    draw();
+  </script>
+</body>
+</html>

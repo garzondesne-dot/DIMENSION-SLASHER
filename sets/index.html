@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>DIMENSION SLASHER 번외편 · 포함의 결계</title>
+  <meta name="theme-color" content="#0b0a12">
+  <meta name="description" content="공통수학2 집합 사이의 포함 관계를 카드 덱빌딩으로 배우는 50분 수업용 게임">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="디멘션 슬래셔">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- 타이틀 -->
+  <section id="screen-title" class="screen active">
+    <canvas id="title-bg" aria-hidden="true"></canvas>
+    <div class="title-wrap">
+      <p class="eyebrow">공통수학2 · Ⅱ-1 집합 · 집합 사이의 포함 관계 <span id="ver-label"></span></p>
+      <h1 class="logo">DIMENSION<br><span>SLASHER</span><b class="beta-badge test-badge">번외편</b></h1>
+      <p class="spin-title">포함의 결계</p>
+      <p class="tagline">몬스터는 곧 문제다. 기호를 벼려 결계를 베어라.</p>
+      <div class="student-form">
+        <p class="sf-title">플레이어 등록</p>
+        <div class="sf-row">
+          <label><select id="sf-grade"><option value="">-</option><option>1</option><option>2</option><option>3</option></select> 학년</label>
+          <label><input id="sf-class" type="number" inputmode="numeric" min="1" max="20" placeholder="-"> 반</label>
+          <label><input id="sf-num" type="number" inputmode="numeric" min="1" max="50" placeholder="-"> 번</label>
+        </div>
+      </div>
+      <div class="title-btns">
+        <button id="btn-continue" class="btn primary big hidden">▶ 이어하기</button>
+        <button id="btn-start" class="btn primary big">수업 시작</button>
+      </div>
+      <div class="title-btns sub"><button class="btn small btn-settings">⚙ 설정</button><button id="btn-report-title" class="btn small">📨 결과 코드</button></div>
+      <p id="save-note" class="hint"></p>
+      <p class="hint">1페이즈 전시학습 → 2페이즈 포함 관계 → 3페이즈 형성평가 필드 · 자동 저장</p>
+      <p class="credit">제작: 김찬우 선생님</p>
+    </div>
+  </section>
+
+  <!-- 프롤로그 -->
+  <section id="screen-story" class="screen">
+    <div class="story">
+      <p class="loop-big">포함의 결계</p>
+      <p>집합의 탑에 <b class="c-cyan">결계</b>가 쳐졌다. 결계를 지키는 괴물은 하나하나가 <b class="c-gold">풀리지 않은 문제</b>다.</p>
+      <p>캠프의 대장간에서 <b class="c-cyan">∈ · ⊂ · =</b> 같은 기호를 조합해 <b>개념 카드</b>를 벼려라. 새 카드는 처음 한 번 <b>예제</b>를 풀어야 완성된다.</p>
+      <p>전투에서는 카드로 문제를 밝히고(🔍 스캔), 알맞은 풀이 카드로 문제를 맞혀 결계를 깨라.</p>
+      <p class="muted">몬스터는 선생님 신호(해금 코드)에 맞춰 나타난다. 쓰러져도 괜찮다. 시간은 되감긴다.</p>
+      <button id="btn-story" class="btn primary">캠프로 ▶</button>
+    </div>
+  </section>
+
+  <!-- 자물쇠: 선생님 해금 코드 -->
+  <section id="screen-lock" class="screen">
+    <div class="progress-badge"></div>
+    <div class="story lock-wrap">
+      <div id="lock-box" class="lock-box">
+        <p class="lock-icon">🔒</p>
+        <h2 id="lock-title">다음 몬스터</h2>
+        <p id="lock-desc"></p>
+        <div class="lock-row"><input id="lock-input" type="text" inputmode="numeric" maxlength="4" placeholder="코드" autocomplete="off"><button id="lock-go" class="btn primary big">🔓 열기</button></div>
+        <p id="lock-msg" class="lock-msg"></p>
+      </div>
+      <p id="lock-sheet" class="lock-sheet"></p>
+      <button id="lock-back" class="btn small">⛺ 캠프로 돌아가 복습</button>
+    </div>
+  </section>
+
+  <!-- 캠프: 대장간 · 덱 구성 -->
+  <section id="screen-camp" class="screen">
+    <header class="bar">
+      <div>
+        <h2>캠프 · <span id="camp-sub"></span></h2>
+      </div>
+      <div class="bar-btns">
+        <button id="btn-guide" class="btn small hidden">📖 조합법</button>
+        <button class="btn small btn-settings">⚙</button>
+        <button id="btn-report-camp" class="btn small">📨</button>
+        <button class="btn small mute">소리 켬</button>
+      </div>
+    </header>
+    <div class="progress-badge"></div>
+    <p id="camp-next" class="camp-next"></p>
+    <div class="camp-tabs">
+      <button class="camp-tab on" data-tab="forge">⚒ 대장간</button>
+      <button class="camp-tab" data-tab="deck">🃏 덱 보기 <span id="deck-rule-mini"></span></button>
+    </div>
+    <div id="camp-cheat" class="camp-cheat hidden" hidden>🧪 치트 <button id="cheat-parts" class="btn small">부품 +5</button><button id="cheat-recipes" class="btn small">레시피 전부 발견</button></div>
+
+    <div id="tab-forge">
+      <p class="howto">눌러서 모루에 올리고 <b>⚒ 연성</b>! <b>왼쪽 칸부터</b> 채워져요 (순서가 뜻을 바꿔요). 모루 칸을 누르면 빠져요.</p>
+      <h3 class="shelf-title">연산 <span class="muted small">무한</span></h3>
+      <div id="ops" class="parts shelf ops-shelf"></div>
+      <h3 class="shelf-title">부품 가방</h3>
+      <div id="parts" class="parts shelf"></div>
+
+      <div class="anvil-dock">
+        <div class="anvil">
+          <div class="slot" data-k="a"></div>
+          <div class="slot op-slot" data-k="op"></div>
+          <div class="slot" data-k="b"></div>
+          <button id="forge-btn" class="btn primary forge-btn" disabled>⚒<br>연성</button>
+        </div>
+        <div id="forge-msg" class="forge-msg"></div>
+      </div>
+
+      <h3>카드 보관함 (<span id="store-count">0</span>장) <span class="muted small">누르면 덱 밖·수치 낮은 카드부터 · ▾ 직접 고르기</span></h3>
+      <div id="store" class="stack-grid"></div>
+
+      <div id="archive-wrap" class="archive-wrap hidden" hidden>
+        <h3>📜 지난 차원 서고 (<span id="archive-count">0</span>장) <button id="archive-toggle" class="btn small">펼치기 ▾</button></h3>
+        <p class="muted small">다른 차원에서 만든 카드. 꺼내면 이번 차원의 보관함으로 와서 재료나 덱에 쓸 수 있어요.</p>
+        <div id="archive" class="deck-list"></div>
+      </div>
+
+      <h3>레시피 도감</h3>
+      <div id="recipes" class="recipes"></div>
+    </div>
+
+    <div id="tab-deck" class="hidden">
+      <div id="deck-rules" class="deck-rules"></div>
+      <div class="deck-cols">
+        <div>
+          <h3>덱 (<span id="deck-count">0</span>장)</h3>
+          <div id="deck-list" class="deck-list"></div>
+        </div>
+        <div>
+          <h3>보관함 (<span id="store2-count">0</span>장)</h3>
+          <div id="store-list" class="deck-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-gear" class="hidden" hidden>
+      <p class="gear-head">◆ 기억 결정 <b id="gear-crystals">0</b> · 유물 착용 <b id="gear-slots">0 / 3</b></p>
+      <h3>유물</h3>
+      <div id="relic-list" class="relic-list"></div>
+      <h3>물약</h3>
+      <div id="potion-list" class="potion-list"></div>
+    </div>
+
+    <div class="depart-row"><button id="depart" class="btn primary big">출발 ▶</button></div>
+  </section>
+
+  <!-- 전투 -->
+  <section id="screen-battle" class="screen">
+    <header class="bar">
+      <div><span id="b-loop" class="loop">LOOP 001</span> <span id="b-floor" class="floor"></span> <span id="b-relics" class="b-relics"></span></div>
+      <div class="bar-btns"><button class="btn small btn-settings">⚙</button><button class="btn small mute">소리 켬</button></div>
+    </header>
+
+    <div class="progress-badge"></div>
+    <div class="prob-panel">
+      <div class="prob-head"><span class="prob-tag">문제</span><span id="prob-steps" class="steps"></span></div>
+      <p id="prob-text" class="prob-text math"></p>
+      <p id="prob-goal" class="prob-goal"></p>
+    </div>
+
+    <div class="enemy-hud">
+      <div class="row"><b id="e-name"></b><span id="e-status"></span></div>
+      <div class="hpbar enemy"><i id="e-hpfill"></i><span id="e-gates" class="gates"></span><span id="e-hptext"></span></div>
+      <div id="e-intent" class="intent-line"></div>
+    </div>
+
+    <div class="stage-wrap"><canvas id="stage"></canvas><canvas id="hero-back" class="hero-back" width="120" height="160"></canvas></div>
+
+    <div class="player-hud">
+      <div class="hpbar player"><i id="p-hpfill"></i><span id="p-hptext"></span></div>
+      <span id="p-block" class="pblock"></span>
+      <span id="p-status" class="pstatus"></span>
+      <span id="p-energy" class="energy" title="기력"></span>
+      <span id="p-piles" class="piles"></span>
+    </div>
+    <div class="actions">
+      <button id="btn-hold" class="btn small">📌 홀드</button>
+      <button id="btn-emergency" class="btn small">⚡ 긴급 연성</button>
+      <button id="btn-retreat" class="btn small">⛺ 후퇴</button>
+      <span id="potions" class="potions"></span>
+      <button id="btn-cheat-win" class="btn small cheat hidden">⏭ 즉시 승리</button>
+      <button id="end-turn" class="btn end">턴 종료</button>
+    </div>
+    <p id="hold-hint" class="hold-hint hidden">📌 턴이 끝나도 남길 카드를 누르세요 (기력 1)</p>
+    <div id="hand" class="hand"></div>
+  </section>
+
+  <!-- 전리품 -->
+  <section id="screen-reward" class="screen">
+    <div class="story">
+      <h2 id="reward-title"></h2>
+      <p id="reward-desc"></p>
+      <div id="reward-parts" class="parts center"></div>
+      <p id="reward-next" class="muted"></p>
+      <button id="reward-go" class="btn primary">캠프로 ▶</button>
+    </div>
+  </section>
+
+  <!-- 캠페인 클리어 -->
+  <section id="screen-clear" class="screen">
+    <div class="story">
+      <h2>포함의 결계 돌파!</h2>
+      <p>2ⁿ의 수호자가 쓰러지고 결계가 걷혔다. 집합 사이의 포함 관계를 모두 꿰뚫었다.</p>
+      <p id="clear-title" class="clear-title"></p>
+      <table id="clear-stats" class="stats"></table>
+      <p><button class="btn primary report-btn">📨 결과 코드</button></p>
+      <p class="muted">📝 학습지 형성평가 칸에 오늘 정리한 내용을 적어 보자.</p>
+      <div class="title-btns"><button id="btn-restart" class="btn">타이틀로</button></div>
+    </div>
+  </section>
+
+</div>
+
+<!-- 문제 창 -->
+<div id="quiz" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="quiz-box">
+    <div class="quiz-head"><b id="quiz-card"></b><span id="quiz-formula" class="math"></span></div>
+    <p id="quiz-q" class="quiz-q math"></p>
+    <canvas id="quiz-diagram" width="480" height="240"></canvas>
+    <div id="quiz-choices" class="choices"></div>
+    <div id="quiz-sol" class="sol math hidden"></div>
+    <button id="quiz-next" class="btn primary hidden">해설 확인 · 계속 ▶</button>
+  </div>
+</div>
+
+<!-- 조합법 (베타 테스트 한정) -->
+<div id="guide" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-head"><b>📖 조합법 <span class="muted small">베타 테스트용</span></b><button id="guide-close" class="btn small">닫기 ✕</button></div>
+    <p class="muted small">어떤 몬스터에 어떤 카드를 쓸지는 문제를 보고 직접 고르세요. 숙련은 직접 연성해야 올라가요.</p>
+    <div id="guide-list"></div>
+  </div>
+</div>
+
+<!-- 결과 보내기 -->
+<div id="report" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-head"><b>📨 결과 보내기</b><button id="report-close" class="btn small">닫기 ✕</button></div>
+    <p id="report-who" class="report-who"></p>
+    <div id="report-form">
+      <p class="rq">이 게임, 재미있었나요?</p>
+      <div class="rate" data-k="fun"></div>
+      <p class="rq">수학을 했다는 느낌이 들었나요?</p>
+      <div class="rate" data-k="math"></div>
+      <p class="rq">한줄평 · 헷갈렸던 점 · 하고 싶은 말</p>
+      <textarea id="report-comment" maxlength="300" rows="3" placeholder="자유롭게 적어 주세요"></textarea>
+      <button id="report-send" class="btn primary big">보내기</button>
+    </div>
+    <div id="report-done" class="hidden">
+      <p id="report-status"></p>
+      <p class="muted small">전송이 안 되면 아래 결과 코드를 사진 찍거나 복사해서 선생님께 보여 주세요.</p>
+      <pre id="report-code" class="report-code"></pre>
+      <button id="report-copy" class="btn small">코드 복사</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="js/mathgen.js"></script>
+<script src="js/setgen.js"></script>
+<script src="js/codes.js"></script>
+<script src="js/track.js"></script>
+<script src="js/data.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/craft.js"></script>
+<script src="js/cards.js"></script>
+<script src="js/monsters.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/quiz.js"></script>
+<script src="js/cardview.js"></script>
+<script src="js/challenge.js"></script>
+<script src="js/cinematic.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/save.js"></script>
+<script src="js/report.js"></script>
+<script src="js/forge.js"></script>
+<script src="js/battle.js"></script>
+<script src="js/titlebg.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
