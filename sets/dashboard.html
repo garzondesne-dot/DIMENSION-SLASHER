@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>포함의 결계 · 실시간 현황</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="../icons/icon-192.png">
+  <style>
+    :root { --bg: #0b0a12; --panel: #151320; --line: #2f2a47; --text: #ece9f7; --muted: #9a95c0; --gold: #e8b04a; --teal: #2ec4b6; --red: #ff3355; --violet: #a77bff; --cyan: #4cc9ff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', system-ui, sans-serif; padding: 12px; font-size: 15px; }
+    h1 { margin: 0; font-size: 20px; color: var(--teal); }
+    a { color: var(--cyan); }
+    .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 10px; }
+    input, select, button { font-size: 15px; padding: 6px 8px; background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+    button { border-color: var(--gold); cursor: pointer; }
+    #state { font-size: 13px; color: var(--muted); }
+    #state.err { color: var(--red); }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px; }
+    .card { background: var(--panel); border: 1px solid var(--line); padding: 8px 10px; }
+    .card b { display: block; font-size: 26px; color: var(--gold); }
+    .card.alert b { color: var(--red); }
+    .card small { color: var(--muted); }
+    .mbar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-bottom: 10px; }
+    .mbar div { background: var(--panel); border: 1px solid var(--line); padding: 4px; font-size: 11px; text-align: center; position: relative; overflow: hidden; }
+    .mbar div i { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--teal); }
+    .mbar div b { display: block; font-size: 16px; color: var(--teal); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid var(--line); padding: 6px 4px; text-align: left; vertical-align: middle; }
+    th { color: var(--muted); font-weight: normal; font-size: 13px; position: sticky; top: 0; background: var(--bg); }
+    tr.flag td { background: #2a0f18; }
+    td.num { font-size: 20px; font-weight: bold; color: var(--gold); width: 46px; }
+    .dots { display: inline-flex; gap: 3px; }
+    .dots i { width: 14px; height: 14px; border: 2px solid #3a5f62; display: inline-block; }
+    .dots i.on { background: var(--teal); border-color: var(--teal); }
+    .dots i.cur { border-color: var(--gold); box-shadow: 0 0 6px var(--gold); }
+    .dots i.sep { width: 4px; border: 0; }
+    .flagtxt { color: #ffb3c1; font-size: 13px; }
+    .solve { background: var(--violet); color: #fff; padding: 0 5px; font-size: 12px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .login { max-width: 420px; margin: 40px auto; background: var(--panel); border: 2px solid var(--gold); padding: 16px; }
+    .hidden { display: none !important; }
+    @media (max-width: 640px) { .mbar { grid-template-columns: repeat(5, 1fr); } .hide-sm { display: none; } }
+  </style>
+</head>
+<body>
+  <div id="login" class="login hidden">
+    <h1>📊 실시간 현황 로그인</h1>
+    <p class="muted">Apps Script(Code.gs)의 <b>TEACHER_KEY</b> 에 정한 비밀번호를 넣어 주세요. 이 기기에 기억됩니다.</p>
+    <div class="bar"><input id="key" type="password" placeholder="비밀번호"><button id="go">들어가기</button></div>
+    <p id="loginMsg" class="muted"></p>
+  </div>
+
+  <div id="app" class="hidden">
+    <h1>📊 포함의 결계 · 실시간 현황</h1>
+    <div class="bar">
+      <label>날짜 <input id="date" type="date"></label>
+      <label>반 <select id="cls"><option value="">전체</option></select></label>
+      <button id="refresh">↻ 지금 새로고침</button>
+      <a href="teacher.html" target="_blank">🔑 해금 코드</a>
+      <button id="logout" class="hide-sm">로그아웃</button>
+      <span id="state">불러오는 중…</span>
+    </div>
+    <div class="cards">
+      <div class="card"><small>참여 학생</small><b id="cN">0</b></div>
+      <div class="card alert"><small>⚠ 도움이 필요한 학생</small><b id="cFlag">0</b></div>
+      <div class="card"><small>평균 공략 몬스터</small><b id="cAvg">0</b></div>
+      <div class="card"><small>🔒 코드 대기 중</small><b id="cWait">0</b><small id="cWaitBy"></small></div>
+      <div class="card"><small>많이 틀린 몬스터</small><div id="cHard" class="muted"></div></div>
+    </div>
+    <div id="mbar" class="mbar"></div>
+    <table>
+      <thead><tr><th>번호</th><th>지금</th><th>몬스터 (1페이즈 · 2페이즈 · 3페이즈)</th><th class="hide-sm">연성</th><th class="hide-sm">정답률</th><th>살펴볼 점</th><th class="hide-sm">마지막 신호</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="muted">⚠ 판정: 반 중간보다 몬스터 2마리 이상 뒤처짐 · 같은 몬스터 5분 넘게 · 같은 몬스터에서 오답 3번 이상 · 3분 넘게 신호 없음(화면 꺼짐·인터넷). 10초마다 자동 갱신. 학생 폰 ⚙ → 교사 코드로 문제풀이모드를 켤 수 있어요.</p>
+  </div>
+
+  <script src="js/mathgen.js"></script>
+  <script src="js/setgen.js"></script>
+  <script src="js/codes.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/monsters.js"></script>
+  <script src="js/dash.js"></script>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const KEY = 'dimension-slasher-dash-key';
+    const order = DS.Progress.nodes.filter((n) => n.type === 'battle').map((n) => n.monster);
+    const name = (m) => (DS.Monsters[m] ? DS.Monsters[m].name : m);
+    const craftable = Object.keys(DS.Cards).filter((id) => id !== 'member');
+    let rows = [], since = 1, timer = 0, chosen = null; // chosen: 선생님이 고른 반 ('' = 전체)
+
+    // Apps Script 를 JSONP 로 읽는다 (다른 주소에서도 읽힘)
+    function jsonp(params) {
+      return new Promise((res, rej) => {
+        const cb = `__dash${Date.now()}${Math.floor(Math.random() * 1e4)}`;
+        const s = document.createElement('script');
+        const t = setTimeout(() => { cleanup(); rej(new Error('timeout')); }, 20000);
+        function cleanup() { clearTimeout(t); delete window[cb]; s.remove(); }
+        window[cb] = (d) => { cleanup(); res(d); };
+        s.onerror = () => { cleanup(); rej(new Error('load')); };
+        s.src = `${DS.TRACK_URL}?${new URLSearchParams({ ...params, callback: cb })}`;
+        document.head.appendChild(s);
+      });
+    }
+    async function pull() {
+      const key = localStorage.getItem(KEY) || '';
+      try {
+        const d = await jsonp({ mode: 'track', key, since });
+        if (!d.ok) {
+          if (d.error === 'key' || d.error === 'nokey') { showLogin(d.error === 'nokey' ? 'Code.gs 의 TEACHER_KEY 가 비어 있어요. 비밀번호를 정해 넣고 다시 배포해 주세요.' : '비밀번호가 달라요.'); return; }
+          throw new Error(d.error);
+        }
+        rows = rows.concat(d.rows);
+        since = d.last;
+        $('#state').className = '';
+        $('#state').textContent = `갱신 ${new Date().toLocaleTimeString('ko-KR')} · 기록 ${rows.length}줄`;
+        draw();
+      } catch (e) {
+        $('#state').className = 'err';
+        $('#state').textContent = e.message === 'load' || e.message === 'timeout'
+          ? '⚠ 시트에 연결하지 못했어요 (새 Code.gs 를 배포했는지, 인터넷을 확인)' : `⚠ ${e.message}`;
+      }
+    }
+    function draw() {
+      const date = $('#date').value;
+      const cls = DS.Dash.classes(rows, date);
+      const sel = $('#cls');
+      sel.innerHTML = '<option value="">전체</option>' + cls.map((k) => `<option value="${k}">${k.replace('-', '학년 ')}반</option>`).join('');
+      const want = chosen != null ? chosen : (cls[0] || '');
+      sel.value = want === '' || cls.includes(want) ? want : '';
+      const [grade, c] = sel.value ? sel.value.split('-') : [];
+      const A = DS.Dash.aggregate(rows, { date, grade, cls: c, monsters: order, craftable, name });
+      $('#cN').textContent = A.students.length;
+      $('#cFlag').textContent = A.flagged;
+      $('#cAvg').textContent = A.avgWins.toFixed(1);
+      const w = Object.entries(A.waiting);
+      $('#cWait').textContent = w.reduce((a, [, n]) => a + n, 0);
+      $('#cWaitBy').textContent = w.map(([k, n]) => `${k}:${n}`).join(' ');
+      $('#cHard').innerHTML = A.hardest.length ? A.hardest.map(([m, n]) => `${esc(name(m))} <b style="font-size:15px;display:inline">${n}</b>`).join('<br>') : '-';
+      $('#mbar').innerHTML = order.map((m) => {
+        const n = A.clearBy[m] || 0, p = A.students.length ? (100 * n) / A.students.length : 0;
+        return `<div title="${esc(name(m))}"><b>${n}</b>${esc(name(m))}<i style="width:${p}%"></i></div>`;
+      }).join('');
+      const now = Date.now();
+      $('#rows').innerHTML = A.students.map((s) => {
+        const nd = DS.Progress.nodes[s.node] || {};
+        const where = s.cleared ? '🏁 클리어' : s.waiting ? `🔒 ${esc(s.waiting)} 대기` : s.cur ? `⚔ ${esc(name(s.cur))}`
+          : nd.type === 'camp' ? `⚒ 캠프 · ${esc(DS.Progress.floors[nd.floor].title.split(' · ')[0])}` : '…';
+        const dots = order.map((m, i) => `${[2, 6].includes(i) ? '<i class="sep"></i>' : ''}<i class="${s.wins.has(m) ? 'on' : s.cur === m ? 'cur' : ''}" title="${esc(name(m))}"></i>`).join('');
+        const ago = s.last ? Math.round((now - s.last) / 1000) : 0;
+        return `<tr class="${s.flags.length ? 'flag' : ''}"><td class="num">${s.num}</td><td>${where}${s.solve ? ' <span class="solve">풀이모드</span>' : ''}</td>`
+          + `<td><span class="dots">${dots}</span> ${s.wins.size}/10</td><td class="hide-sm">${s.crafts.size}/${craftable.length}${s.exampleFails ? ` <span class="muted">(예제 오답 ${s.exampleFails})</span>` : ''}</td>`
+          + `<td class="hide-sm">${s.rate == null ? '-' : s.rate + '%'}</td><td class="flagtxt">${s.flags.map((f) => esc(f.text)).join('<br>')}</td>`
+          + `<td class="hide-sm muted">${ago < 60 ? ago + '초' : Math.floor(ago / 60) + '분'} 전</td></tr>`;
+      }).join('') || '<tr><td colspan="7" class="muted">아직 기록이 없어요. 학생이 게임을 시작하면 나타나요.</td></tr>';
+    }
+    function showLogin(msg) {
+      clearInterval(timer);
+      $('#app').classList.add('hidden');
+      $('#login').classList.remove('hidden');
+      $('#loginMsg').textContent = msg || '';
+    }
+    function startApp() {
+      $('#login').classList.add('hidden');
+      $('#app').classList.remove('hidden');
+      rows = []; since = 1;
+      pull();
+      clearInterval(timer);
+      timer = setInterval(pull, 10000);
+    }
+    $('#go').addEventListener('click', () => { localStorage.setItem(KEY, $('#key').value.trim()); startApp(); });
+    $('#key').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#go').click(); });
+    $('#logout').addEventListener('click', () => { localStorage.removeItem(KEY); showLogin(''); });
+    $('#refresh').addEventListener('click', pull);
+    $('#date').value = DS.Codes.day();
+    $('#date').addEventListener('change', draw);
+    $('#cls').addEventListener('change', () => { chosen = $('#cls').value; draw(); });
+    setInterval(draw, 15000); // 경과 시간 갱신
+    if (localStorage.getItem(KEY)) startApp(); else showLogin('');
+  </script>
+</body>
+</html>

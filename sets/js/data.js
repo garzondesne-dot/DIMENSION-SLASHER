@@ -91,7 +91,11 @@ DS.SPINOFF = true; // 번외편 표시
 DS.BETA = false;
 DS.TEST = false;
 DS.GUIDE = false;
-DS.REPORT_URL = ''; // 2차(실시간 현황)에서 연결
+// 결과 보내기 · 실시간 진행 기록: 본편과 같은 Apps Script 웹 앱 (결과는 '번외편결과' 탭, 진행 기록은 '진행' 탭)
+// 진행 기록은 새 Code.gs 가 배포돼 ?mode=ping 에 답할 때만 보낸다 (track.js)
+DS.REPORT_URL = 'https://script.google.com/macros/s/AKfycbyZD3bDf02Sw89hRrMdwiGMl9Ro42uqFKq1ORqN5hStOw1jsafwBHCkXpni_bPzy7felg/exec';
+DS.TRACK_URL = DS.REPORT_URL;
+DS.REPORT_TAB = '번외편결과';
 // 설정 (⚙): 기기에 저장
 DS.SettingDefs = {
   stack: { name: '대장간 카드 묶음 보기', desc: '같은 카드를 한 칸에 묶어 보기 (끄면 낱장)', def: false },

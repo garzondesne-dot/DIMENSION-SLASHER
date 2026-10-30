@@ -37,7 +37,7 @@ window.DS = window.DS || {};
   }
   const track = (type, data = {}) => DS.Track.log(type, { node: G ? G.node : 0, ...data });
   const statHooks = (s) => ({
-    onAnswer: (ok) => { s.asked++; if (ok) s.correct++; track('answer', { ok }); },
+    onAnswer: (ok) => { s.asked++; if (ok) s.correct++; track('answer', { ok, monster: curMonster() }); },
     onStep: () => { s.steps++; track('step', { monster: curMonster() }); },
     onCrit: () => { s.crits++; },
     onWrongTool: () => { s.wrongTools++; track('wrongTool', { monster: curMonster() }); },
@@ -87,6 +87,7 @@ window.DS = window.DS || {};
   // ── 자물쇠: 선생님 신호(해금 코드)를 기다린다 ─────────────────
   function showLock(n, i) {
     DS.Save.write(G);
+    track('wait', { lock: n.lock });
     const isField = n.type === 'camp';
     $('#lock-title').textContent = isField ? '🔒 형성평가 필드' : '🔒 다음 몬스터';
     $('#lock-desc').textContent = isField
@@ -130,7 +131,7 @@ window.DS = window.DS || {};
       nextTitle: '다음 전투로 출발',
       onForge: (ok, id) => {
         if (ok) G.stats.forgeOK++; else G.stats.forgeFails++;
-        track('craft', { ok });
+        track('craft', { ok, card: id });
         enterCampChips(n);
         updateBadge();
       },
@@ -311,5 +312,12 @@ window.DS = window.DS || {};
   newGame();
   bind();
   refreshTitle();
+  // 실시간 진행 기록: 새 Code.gs 가 배포돼 있으면 몇 초마다 선생님 시트로. 1분마다 살아 있음 신호(지금 화면)
+  DS.Track.start(() => ({ solve: !!(G && G.solveMode) }));
+  setInterval(() => {
+    if (document.hidden || !G || $('#screen-title').classList.contains('active')) return;
+    const scr = (document.querySelector('.screen.active') || {}).id || '';
+    track('alive', { monster: curMonster(), lock: scr === 'screen-lock' ? (nodes[G.node] || {}).lock : '', card: scr.replace('screen-', '') });
+  }, 60000);
   DS.Game = { state: () => G, goto: (i) => goto(i) }; // 자동 플레이 테스트용
 })();

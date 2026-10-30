@@ -7,7 +7,12 @@
 //  - saveResult: 게임 안의 [결과 보내기]가 호출 → 결과 시트의 '결과' 탭에 한 줄 추가
 //      결과 시트: RESULT_SHEET 에 넣은 시트, 비어 있으면 이 스크립트가 붙어 있는 시트(확장 프로그램으로 만든 경우)
 //  - doPost: 파일로 연 게임(DS.REPORT_URL)에서 보내는 결과도 같은 시트에 받는다
-// 자세한 설정 순서: docs/deploy-apps-script.md
+//      kind: 'track' 이면 번외편 실시간 진행 기록 → '진행' 탭 (_tab 이 있으면 그 탭에 결과)
+//  - doGet ?mode=… : 번외편 현황 페이지(GitHub Pages)가 읽는 자료 창구 (JSONP)
+//      mode=ping  → 연결 확인 (학생 게임이 이걸로 전송을 켬)
+//      mode=track → 진행 기록 (TEACHER_KEY 가 맞아야 함)
+//    화면·집계는 모두 GitHub Pages 쪽(sets/dashboard.html)에 있어서, 이 파일은 한 번 붙여 넣고 배포하면 다시 고칠 일이 없다
+// 자세한 설정 순서: docs/deploy-apps-script.md, 번외편 현황: docs/sets-dashboard.md
 
 // 드라이브의 게임 파일 이름 (일부만 맞아도 됨). 파일 링크나 ID를 넣으면 그 파일만 쓴다.
 const GAME_FILE = 'dimension-slasher-game';
@@ -16,8 +21,15 @@ const RESULT_SHEET = '';
 const SHEET_NAME = '결과';
 // 게임의 새 주소 (GitHub Pages). 비우면 예전처럼 드라이브의 게임 파일을 보여 준다.
 const NEW_URL = 'https://garzondesne-dot.github.io/DIMENSION-SLASHER/';
+// 번외편 현황 페이지 비밀번호 (선생님이 정함. 저장소에는 비워 둔다)
+const TEACHER_KEY = '';
+const TRACK_SHEET = '진행';
+const TRACK_HEAD = ['시각', 't', '학년', '반', '번호', '기기', '사건', '몬스터', '노드', '정답', '카드', '자물쇠', '문제풀이', '버전'];
+const API_VER = 2;
 
-function doGet() {
+function doGet(e) {
+  const p = (e && e.parameter) || {};
+  if (p.mode) return api_(p);
   if (NEW_URL) {
     return HtmlService.createHtmlOutput(movedPage_())
       .setTitle('DIMENSION SLASHER')
@@ -79,8 +91,61 @@ function saveResult(d) {
 }
 
 function doPost(e) {
-  appendResult_(JSON.parse(e.postData.contents));
+  const d = JSON.parse(e.postData.contents);
+  if (d && d.kind === 'track') appendTrack_(d);
+  else appendResult_(d);
   return ContentService.createTextOutput('ok');
+}
+
+// 현황 페이지·학생 게임이 읽는 창구. callback 이 있으면 JSONP (다른 주소에서도 읽힘)
+function api_(p) {
+  let out;
+  try {
+    if (p.mode === 'ping') out = { ok: true, ver: API_VER };
+    else if (p.mode === 'track') {
+      if (!TEACHER_KEY) out = { ok: false, error: 'nokey' };
+      else if (String(p.key || '') !== String(TEACHER_KEY)) out = { ok: false, error: 'key' };
+      else out = readTrack_(Number(p.since) || 1);
+    } else out = { ok: false, error: 'mode' };
+  } catch (err) {
+    out = { ok: false, error: String(err) };
+  }
+  const json = JSON.stringify(out);
+  if (p.callback && /^[\w.$]+$/.test(p.callback)) {
+    return ContentService.createTextOutput(p.callback + '(' + json + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+// 진행 기록: 학생 게임이 몇 초마다 모아서 보낸다 { kind, sid, who: { grade, cls, num }, ver, solve, events: [{ t, at, type, … }] }
+function appendTrack_(d) {
+  const ss = resultBook_();
+  const sh = ss.getSheetByName(TRACK_SHEET) || ss.insertSheet(TRACK_SHEET);
+  const w = d.who || {};
+  const rows = (d.events || []).slice(0, 200).map(function (ev) {
+    return [ev.at || '', ev.t || '', w.grade || '', w.cls || '', w.num || '', d.sid || '', ev.type || '', ev.monster || '',
+      ev.node == null ? '' : ev.node, ev.ok == null ? '' : (ev.ok ? 1 : 0), ev.card || '', ev.lock || '', d.solve ? 1 : 0, d.ver || ''];
+  });
+  if (!rows.length) return;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    if (sh.getLastRow() === 0) sh.appendRow(TRACK_HEAD);
+    sh.getRange(sh.getLastRow() + 1, 1, rows.length, TRACK_HEAD.length).setValues(rows);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// since 행 다음부터 끝까지 (현황 페이지는 받은 데까지 기억했다가 새 줄만 받는다)
+function readTrack_(since) {
+  const ss = resultBook_();
+  const sh = ss.getSheetByName(TRACK_SHEET);
+  if (!sh) return { ok: true, last: 1, rows: [] };
+  const last = sh.getLastRow();
+  if (last <= since) return { ok: true, last: last, rows: [] };
+  const rows = sh.getRange(since + 1, 1, last - since, TRACK_HEAD.length).getValues();
+  return { ok: true, last: last, rows: rows };
 }
 
 function resultBook_() {
@@ -95,7 +160,9 @@ function resultBook_() {
 // 반 전체가 동시에 보내도 줄이 섞이지 않게 잠금을 건다.
 function appendResult_(d) {
   const ss = resultBook_();
-  const sh = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
+  const tab = d._tab || SHEET_NAME; // 번외편 결과는 따로 ('번외편결과')
+  delete d._tab;
+  const sh = ss.getSheetByName(tab) || ss.insertSheet(tab);
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {

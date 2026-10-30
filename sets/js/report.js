@@ -76,6 +76,7 @@ DS.Report = (function () {
       튜토리얼: rec.tutorial, 연성성공: rec.forgeOK, 연성실패: rec.forgeFails,
       플레이분: rec.minutes, 재미: answers.fun || '', 수학느낌: answers.math || '',
       한줄평: $('#report-comment').value.trim().slice(0, 300),
+      ...(DS.REPORT_TAB ? { _tab: DS.REPORT_TAB } : {}), // 번외편: 결과를 다른 탭에 (Code.gs 가 꺼내 씀)
     };
   }
   // 사진·복사용 짧은 결과 코드

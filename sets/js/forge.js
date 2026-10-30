@@ -482,7 +482,7 @@ DS.Forge = (function () {
         slots = { a: null, op: null, b: null };
         msg.className = 'forge-msg ng';
         msg.innerHTML = '<p><b>아직 개념이 흐릿하다…</b> 재료는 돌려받았어요. 해설을 떠올리며 다시 연성하면 <b>숫자가 바뀐 예제</b>가 나와요.</p>';
-        if (st.onForge) st.onForge(false);
+        if (st.onForge) st.onForge(false, res.out.id);
         render();
         if (tut) tutGo(Math.max(0, TUT.findIndex((x) => x.start))); // 튜토리얼 중이면 연성 첫 단계부터 다시
         return;
@@ -519,7 +519,7 @@ DS.Forge = (function () {
       msg.className = 'forge-msg ng';
       msg.innerHTML = `<p><b>연성 실패</b> — 재료는 돌려받았어요.<br>${pretty(res.msg)}</p>`;
     }
-    if (st.onForge) st.onForge(res.ok);
+    if (st.onForge) st.onForge(res.ok, res.ok && res.out ? res.out.id : '');
     render();
   }
 
